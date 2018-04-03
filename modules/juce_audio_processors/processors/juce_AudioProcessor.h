@@ -1025,12 +1025,6 @@ public:
     */
     virtual String getParameterText (int parameterIndex, int maximumStringLength);
     
-    /**
-     Returns the actual value of parameter (not normalized) based on parameter ID and the new value
-     given through the function, this is necessary for parameter updates to work with AAX wrappers
-     */
-    virtual String getParameterText (int parameterIndex, float newValue) = 0;
-
     /** Returns the number of discrete steps that this parameter can represent.
 
         The default return value if you don't implement this method is
