@@ -1649,7 +1649,10 @@ public:
 
         String getOSXDeploymentTarget (const XcodeBuildConfiguration& config, String* sdkRoot = nullptr) const
         {
-            auto sdk = config.getOSXSDKVersionString() + " SDK";
+            auto sdk = config.getOSXSDKVersionString();
+            if (!sdk.endsWith("SDK"))
+                sdk += " SDK";
+
             auto sdkCompat = config.getOSXDeploymentTargetString();
 
             // The AUv3 target always needs to be at least 10.11
