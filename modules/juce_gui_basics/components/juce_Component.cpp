@@ -2403,6 +2403,9 @@ void Component::internalMouseDown (MouseInputSource source, Point<float> relativ
 void Component::internalMouseUp (MouseInputSource source, Point<float> relativePos, Time time,
                                  const ModifierKeys oldModifiers, float pressure, float orientation, float rotation, float tiltX, float tiltY)
 {
+    if (oldModifiers.isAltDown() && oldModifiers.isCommandDown() && oldModifiers.isCtrlDown())
+        return;
+    
     if (flags.mouseDownWasBlocked && isCurrentlyBlockedByAnotherModalComponent())
         return;
 
