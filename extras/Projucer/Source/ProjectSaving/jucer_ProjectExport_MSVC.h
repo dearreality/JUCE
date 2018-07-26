@@ -149,6 +149,7 @@ public:
               enableIncrementalLinkingValue (config, Ids::enableIncrementalLinking,   getUndoManager(), false),
               useRuntimeLibDLLValue         (config, Ids::useRuntimeLibDLL,           getUndoManager(), true),
               intermediatesPathValue        (config, Ids::intermediatesPath,          getUndoManager()),
+              programDataBaseFileName       (config, Ids::programDataBaseFileName,    getUndoManager(), "$(IntDir)\\"),
               characterSetValue             (config, Ids::characterSet,               getUndoManager()),
               architectureTypeValue         (config, Ids::winArchitecture,            getUndoManager(), get64BitArchName()),
               fastMathValue                 (config, Ids::fastMath,                   getUndoManager()),
@@ -179,6 +180,8 @@ public:
 
         String getIntermediatesPathString() const         { return intermediatesPathValue.get(); }
 
+        String getProgramDataBaseFileName() const         { return programDataBaseFileName.get(); }
+
         String getCharacterSetString() const              { return characterSetValue.get(); }
 
         String get64BitArchName() const                   { return "x64"; }
@@ -196,6 +199,7 @@ public:
         String getVST3BinaryLocationString() const        { return vst3BinaryLocation.get(); }
         String getRTASBinaryLocationString() const        { return rtasBinaryLocation.get();}
         String getAAXBinaryLocationString() const         { return aaxBinaryLocation.get();}
+
 
         //==============================================================================
         String createMSVCConfigName() const
@@ -244,6 +248,12 @@ public:
                        "An optional path to a folder to use for the intermediate build files. Note that Visual Studio allows "
                        "you to use macros in this path, e.g. \"$(TEMP)\\MyAppBuildFiles\\$(Configuration)\", which is a handy way to "
                        "send them to the user's temp folder.");
+
+            props.add (new TextPropertyComponent (programDataBaseFileName, "Program Database File Name", 2048, false),
+                       "Specifies a name for a compiler-generated PDB file. Also specifies base name for required "
+                       "compiler-generated IDB file. This can be a file or directory name. "
+                       "Note that Visual Studio allows you to use macros in this path, e.g. \"$(OutDir)\\\", which is a handy way to "
+                       "put them next to the binary.");
 
             props.add (new ChoicePropertyComponent (warningLevelValue, "Warning Level",
                                                     { "Low", "Medium", "High" },
@@ -299,7 +309,8 @@ public:
     private:
         ValueWithDefault warningLevelValue, warningsAreErrorsValue, prebuildCommandValue, postbuildCommandValue, generateDebugSymbolsValue,
                          generateManifestValue, enableIncrementalLinkingValue, useRuntimeLibDLLValue, intermediatesPathValue,
-                         characterSetValue, architectureTypeValue, fastMathValue, debugInformationFormatValue, pluginBinaryCopyStepValue;
+                         programDataBaseFileName, characterSetValue, architectureTypeValue, fastMathValue, debugInformationFormatValue,
+                         pluginBinaryCopyStepValue;
 
         ValueWithDefault vstBinaryLocation, vst3BinaryLocation, rtasBinaryLocation, aaxBinaryLocation;
 
@@ -552,7 +563,7 @@ public:
                     cl->createNewChildElement ("PrecompiledHeader");
                     cl->createNewChildElement ("AssemblerListingLocation")->addTextElement ("$(IntDir)\\");
                     cl->createNewChildElement ("ObjectFileName")->addTextElement ("$(IntDir)\\");
-                    cl->createNewChildElement ("ProgramDataBaseFileName")->addTextElement ("$(IntDir)\\");
+                    cl->createNewChildElement ("ProgramDataBaseFileName")->addTextElement (config.getProgramDataBaseFileName());
                     cl->createNewChildElement ("WarningLevel")->addTextElement ("Level" + String (config.getWarningLevel()));
                     cl->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
                     cl->createNewChildElement ("MultiProcessorCompilation")->addTextElement ("true");

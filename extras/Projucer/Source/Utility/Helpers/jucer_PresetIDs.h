@@ -117,6 +117,7 @@ namespace Ids
     DECLARE_ID (auBinaryLocation);
     DECLARE_ID (rtasBinaryLocation);
     DECLARE_ID (aaxBinaryLocation);
+    DECLARE_ID (programDataBaseFileName);
     DECLARE_ID (enablePluginBinaryCopyStep);
     DECLARE_ID (stripLocalSymbols);
     DECLARE_ID (osxSDK);
