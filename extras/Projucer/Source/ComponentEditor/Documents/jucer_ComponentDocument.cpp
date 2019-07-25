@@ -55,7 +55,7 @@ JucerDocument* ComponentDocument::createCopy()
 
     newOne->resources = resources;
 
-    ScopedPointer<XmlElement> xml (createXml());
+    std::unique_ptr<XmlElement> xml (createXml());
     newOne->loadFromXml (*xml);
 
     return newOne;
@@ -112,7 +112,7 @@ public:
             addAndMakeVisible (layout->getComponent (i));
     }
 
-    ~NormalTestComponent()
+    ~NormalTestComponent() override
     {
         for (int i = getNumChildComponents(); --i >= 0;)
             removeChildComponent (i);

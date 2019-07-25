@@ -47,13 +47,14 @@ public:
         : PropertyComponent ("extra callbacks", 250),
           document (doc)
     {
-        addAndMakeVisible (listBox = new ListBox (String(), this));
+        listBox.reset (new ListBox (String(), this));
+        addAndMakeVisible (listBox.get());
         listBox->setRowHeight (22);
 
         document.addChangeListener (this);
     }
 
-    ~ExtraMethodsList()
+    ~ExtraMethodsList() override
     {
         document.removeChangeListener (this);
     }
@@ -126,7 +127,7 @@ public:
 
 private:
     JucerDocument& document;
-    ScopedPointer<ListBox> listBox;
+    std::unique_ptr<ListBox> listBox;
 
     StringArray baseClasses, returnValues, methods, initialContents;
 };
@@ -164,7 +165,7 @@ public:
         doc.addChangeListener (this);
     }
 
-    ~ClassPropertiesPanel()
+    ~ClassPropertiesPanel() override
     {
         document.removeChangeListener (this);
     }
@@ -196,7 +197,7 @@ private:
     {
     public:
         ComponentClassNameProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Class name", 128, false, 0, doc)
+            : ComponentTextProperty<Component> ("Class name", 128, false, nullptr, doc)
         {}
 
         void setText (const String& newText) override    { document.setClassName (newText); }
@@ -208,7 +209,7 @@ private:
     {
     public:
         ComponentCompNameProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Component name", 200, false, 0, doc)
+            : ComponentTextProperty<Component> ("Component name", 200, false, nullptr, doc)
         {}
 
         void setText (const String& newText) override    { document.setComponentName (newText); }
@@ -220,7 +221,7 @@ private:
     {
     public:
         ComponentParentClassesProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Parent classes", 512, false, 0, doc)
+            : ComponentTextProperty<Component> ("Parent classes", 512, false, nullptr, doc)
         {}
 
         void setText (const String& newText) override    { document.setParentClasses (newText); }
@@ -232,7 +233,7 @@ private:
     {
     public:
         ComponentConstructorParamsProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Constructor params", 2048, false, 0, doc)
+            : ComponentTextProperty<Component> ("Constructor params", 2048, false, nullptr, doc)
         {}
 
         void setText (const String& newText) override    { document.setConstructorParams (newText); }
@@ -244,7 +245,7 @@ private:
     {
     public:
         ComponentInitialisersProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Member initialisers", 16384, true, 0, doc)
+            : ComponentTextProperty <Component> ("Member initialisers", 16384, true, nullptr, doc)
         {
             preferredHeight = 24 * 3;
         }
@@ -259,9 +260,9 @@ private:
     {
     public:
         ComponentInitialSizeProperty (JucerDocument& doc, const bool isWidth_)
-            : ComponentTextProperty <Component> (isWidth_ ? "Initial width"
-                                                          : "Initial height",
-                                     10, false, 0, doc),
+            : ComponentTextProperty<Component> (isWidth_ ? "Initial width"
+                                                         : "Initial height",
+                                     10, false, nullptr, doc),
               isWidth (isWidth_)
         {}
 
@@ -288,7 +289,7 @@ private:
     {
     public:
         FixedSizeProperty (JucerDocument& doc)
-            : ComponentChoiceProperty <Component> ("Fixed size", 0, doc)
+            : ComponentChoiceProperty<Component> ("Fixed size", nullptr, doc)
         {
             choices.add ("Resize component to fit workspace");
             choices.add ("Keep component size fixed");
@@ -303,7 +304,7 @@ private:
     {
     public:
         TemplateFileProperty (JucerDocument& doc)
-            : ComponentTextProperty <Component> ("Template file", 2048, false, 0, doc)
+            : ComponentTextProperty<Component> ("Template file", 2048, false, nullptr, doc)
         {}
 
         void setText (const String& newText) override    { document.setTemplateFile (newText); }
@@ -354,6 +355,12 @@ JucerDocumentEditor::JucerDocumentEditor (JucerDocument* const doc)
         refreshPropertiesPanel();
 
         changeListenerCallback (nullptr);
+
+        if (auto* project = document->getCppDocument().getProject())
+        {
+            if (project->shouldSendGUIBuilderAnalyticsEvent())
+                Analytics::getInstance()->logEvent ("GUI Builder", {}, ProjucerAnalyticsEvent::projectEvent);
+        }
     }
 }
 
@@ -387,7 +394,7 @@ void JucerDocumentEditor::updateTabs()
 
     for (int i = tabbedComponent.getNumTabs(); --i >= 0;)
     {
-        if (dynamic_cast<PaintRoutinePanel*> (tabbedComponent.getTabContentComponent (i)) != 0
+        if (dynamic_cast<PaintRoutinePanel*> (tabbedComponent.getTabContentComponent (i)) != nullptr
              && ! paintRoutineNames.contains (tabbedComponent.getTabNames() [i]))
         {
             tabbedComponent.removeTab (i);
@@ -478,11 +485,11 @@ void JucerDocumentEditor::showLayout()
 
 void JucerDocumentEditor::showGraphics (PaintRoutine* routine)
 {
-    if (getCurrentPaintRoutine() != routine || routine == 0)
+    if (getCurrentPaintRoutine() != routine || routine == nullptr)
     {
         for (int i = 0; i < tabbedComponent.getNumTabs(); ++i)
         {
-            if (PaintRoutinePanel* pr = dynamic_cast<PaintRoutinePanel*> (tabbedComponent.getTabContentComponent (i)))
+            if (auto pr = dynamic_cast<PaintRoutinePanel*> (tabbedComponent.getTabContentComponent (i)))
             {
                 if (routine == &(pr->getPaintRoutine()) || routine == nullptr)
                 {
@@ -602,10 +609,10 @@ void JucerDocumentEditor::saveLastSelectedTab() const
         {
             auto& projectProps = project->getStoredProperties();
 
-            ScopedPointer<XmlElement> root (projectProps.getXmlValue ("GUIComponentsLastTab"));
+            std::unique_ptr<XmlElement> root (projectProps.getXmlValue ("GUIComponentsLastTab"));
 
             if (root == nullptr)
-                root = new XmlElement ("FILES");
+                root.reset (new XmlElement ("FILES"));
 
             auto fileName = document->getCppFile().getFileName();
 
@@ -627,7 +634,7 @@ void JucerDocumentEditor::restoreLastSelectedTab()
     {
         if (auto* project = document->getCppDocument().getProject())
         {
-            ScopedPointer<XmlElement> root (project->getStoredProperties().getXmlValue ("GUIComponentsLastTab"));
+            std::unique_ptr<XmlElement> root (project->getStoredProperties().getXmlValue ("GUIComponentsLastTab"));
 
             if (root != nullptr)
             {
@@ -931,9 +938,7 @@ void JucerDocumentEditor::getCommandInfo (const CommandID commandID, Application
 
             bool canPaste = false;
 
-            ScopedPointer<XmlElement> doc (XmlDocument::parse (SystemClipboard::getTextFromClipboard()));
-
-            if (doc != nullptr)
+            if (auto doc = parseXML (SystemClipboard::getTextFromClipboard()))
             {
                 if (doc->hasTagName (ComponentLayout::clipboardXmlTag))
                     canPaste = (currentLayout != nullptr);
@@ -1022,7 +1027,7 @@ bool JucerDocumentEditor::perform (const InvocationInfo& info)
             break;
 
         case JucerCommandIDs::editCompGraphics:
-            showGraphics (0);
+            showGraphics (nullptr);
             break;
 
         case JucerCommandIDs::zoomIn:      setZoom (snapToIntegerZoom (getZoom() * 2.0)); break;
@@ -1149,7 +1154,7 @@ bool JucerDocumentEditor::perform (const InvocationInfo& info)
 
         case StandardApplicationCommandIDs::paste:
             {
-                if (ScopedPointer<XmlElement> doc = XmlDocument::parse (SystemClipboard::getTextFromClipboard()))
+                if (auto doc = parseXML (SystemClipboard::getTextFromClipboard()))
                 {
                     if (doc->hasTagName (ComponentLayout::clipboardXmlTag))
                     {

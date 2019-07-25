@@ -203,7 +203,7 @@ private:
     KeyMappingEditorComponent& owner;
     const CommandID commandID;
     const int keyNum;
-    ScopedPointer<KeyEntryWindow> currentKeyEntryWindow;
+    std::unique_ptr<KeyEntryWindow> currentKeyEntryWindow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChangeKeyButton)
 };
@@ -345,7 +345,7 @@ public:
         owner.getMappings().addChangeListener (this);
     }
 
-    ~TopLevelItem()
+    ~TopLevelItem() override
     {
         owner.getMappings().removeChangeListener (this);
     }

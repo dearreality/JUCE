@@ -98,7 +98,7 @@ public:
     {
     }
 
-    ~LevelDataSource()
+    ~LevelDataSource() override
     {
         owner.cache.getTimeSliceThread().removeTimeSliceClient (this);
     }
@@ -211,8 +211,8 @@ public:
 
 private:
     AudioThumbnail& owner;
-    ScopedPointer<InputSource> source;
-    ScopedPointer<AudioFormatReader> reader;
+    std::unique_ptr<InputSource> source;
+    std::unique_ptr<AudioFormatReader> reader;
     CriticalSection readerLock;
     uint32 lastReaderUseTime = 0;
 
@@ -642,7 +642,7 @@ void AudioThumbnail::saveTo (OutputStream& output) const
 //==============================================================================
 bool AudioThumbnail::setDataSource (LevelDataSource* newSource)
 {
-    jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+    JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED
 
     numSamplesFinished = 0;
 

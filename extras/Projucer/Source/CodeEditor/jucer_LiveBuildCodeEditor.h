@@ -40,7 +40,7 @@ public:
     {
     }
 
-    ~LiveBuildCodeEditor()
+    ~LiveBuildCodeEditor() override
     {
         for (int i = getNumChildComponents(); --i >= 0;)
             if (auto* c = dynamic_cast<DiagnosticOverlayComponent*> (getChildComponent (i)))
@@ -77,7 +77,7 @@ private:
             endPosition.setPositionMaintained (true);
         }
 
-        ~OverlayComponent()
+        ~OverlayComponent() override
         {
             setEditor (nullptr);
         }
@@ -224,7 +224,7 @@ private:
             startTimer (600);
         }
 
-        ~ComponentClassList()
+        ~ComponentClassList() override
         {
             deleteOverlays();
         }
@@ -362,7 +362,7 @@ private:
                 String text = getTextInRange (selection).toLowerCase();
 
                 if (isIntegerLiteral (text) || isFloatLiteral (text))
-                    overlay = new LiteralHighlightOverlay (*this, selection, mightBeColourValue (text));
+                    overlay.reset (new LiteralHighlightOverlay (*this, selection, mightBeColourValue (text)));
             }
         }
 
@@ -450,7 +450,7 @@ private:
     {
     public:
         ControlsComponent (CodeDocument& doc, const Range<int>& selection,
-                           CompileEngineChildProcess* cp, bool showColourSelector)
+                           CompileEngineChildProcess::Ptr cp, bool showColourSelector)
             : document (doc),
               start (doc, selection.getStart()),
               end (doc, selection.getEnd()),
@@ -627,9 +627,9 @@ private:
             owner.getDocument().addListener (this);
         }
 
-        ~LiteralHighlightOverlay()
+        ~LiteralHighlightOverlay() override
         {
-            if (Component* p = getParentComponent())
+            if (auto* p = getParentComponent())
             {
                 p->removeChildComponent (this);
 
@@ -677,7 +677,7 @@ private:
         static Colour getBackgroundColour() { return Colour (0xcb5c7879); }
     };
 
-    ScopedPointer<LiteralHighlightOverlay> overlay;
+    std::unique_ptr<LiteralHighlightOverlay> overlay;
 };
 
 //==============================================================================

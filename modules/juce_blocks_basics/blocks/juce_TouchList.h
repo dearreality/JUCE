@@ -30,16 +30,18 @@ namespace juce
 
     The Type template is a user-defined type of object that will be stored for
     each touch element. The type must be default-constructable and copyable.
+
+    @tags{Blocks}
 */
 template <typename Type>
 class TouchList
 {
 public:
     /** Creates an empty touch list. */
-    TouchList() {}
+    TouchList() = default;
 
     /** Destructor. */
-    ~TouchList() {}
+    ~TouchList() = default;
 
     /** Returns the number of entries in the touch list. */
     int size() const noexcept { return touches.size(); }
@@ -142,7 +144,7 @@ private:
         return t1.index == t2.index && t1.blockUID == t2.blockUID;
     }
 
-    juce::Array<TouchEntry> touches;
+    Array<TouchEntry> touches;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TouchList)
 };

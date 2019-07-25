@@ -1,8 +1,90 @@
-
 == Major JUCE features and updates ==
 
 This file just lists the more notable headline features. For more detailed info
 about minor changes and bugfixes, please see the git log!
+
+Version 5.4.3
+  - Added a Visual Studio 2019 exporter to the Projucer
+  - Added options to configure macOS Hardened Runtime in the Projucer
+  - Fixed a potential memory corruption when drawing on macOS/iOS
+  - Fixed file drag and drop for Windows 8
+  - Multiple DSP module enhancements
+  - Various bug-fixes, improvements and documentation updates
+
+Version 5.4.2
+  - Restructured the low-level Android native code
+  - Added an ADSR envelope class
+  - AudioProcessorValueTreeState performance improvements
+  - Improved Xcode 10 support
+  - Improved VST3 hosting
+  - Windows hiDPI scaling enhancements
+
+Version 5.4.1
+  - Fixed a VST2 compilation error in VS2013
+  - Fixed some live-build compilation errors in the Projucer
+  - Fixed a bug in the Oversampling class
+  - Made MPESynthesiserVoice::noteOnTime public
+  - Fixed some bugs in the Unity plug-in wrapper
+  - Fixed some VS2015 compiler errors
+
+Version 5.4.0
+  - macOS Mojave and iOS 12 support
+  - Windows hiDPI support
+  - Unity native plug-in support
+  - Microsoft BLE MIDI support
+  - Plug-in parameter groups
+  - Support for production-ready Android OBOE
+  - Video playback support on Android and iOS
+  - AudioProcessorValueTreeState improvements
+  - Support for Android Studio 3.2
+  - Various bug-fixes, improvements and documentation updates
+
+Version 5.3.2
+  - Removed the OSX 10.5 and 10.6 deployment target options from the Projucer and enabled more C++11 features across all platforms
+  - Replaced all usage of ScopedPointer with std::unique_ptr
+  - Added camera support for iOS and Android
+  - Fixed some issues using an UndoManager with an AudioProcessorValueTreeState
+  - Added MIDI input to IAA plug-ins
+  - Made multiple calls to MidiInput::openDevice share the same underlying win32 MIDI handle
+  - Added a config flag to juce_audio_processors for enabling LADSPA plugin hosting and enabled it in the AudioPluginHost
+  - Added a "plug-in can do" callback to the VSTCallbackHandler interface
+  - Fixed various undefined behavior in SIMDRegister
+  - Added the methods AudioBlock::copyTo/AudioBlock::copyFrom which facilitate copying to/from an AudioBuffer
+  - Added a lambda callback to OpenGLGraphicsContextCustomShader to allow custom set-up when the shader is activated
+  - Fixed a bug causing an unintentional menu item highlight disco party when using a popup menu in a plug-in's UI
+  - Marked as deprecated: String::empty, var::null, File::nonexistent, ValueTree::invalid and other problematic statically-initialised null values
+
+Version 5.3.1
+  - Add Android and iOS support to AudioPluginHost
+  - Added support for Bela in the form of an AudioIODeviceType
+  - Add bypass support to both hosting and plug-in client code
+  - Added an isBoolean flag to APVTS parameters
+  - Re-worked plug-in wrappers to all use new parameter system via LegacyAudioParameter wrapper class
+  - Fixed an issue where opening the same midi device twice would cause a crash on Windows
+  - Deprecated MouseInputSource::hasMouseMovedSignificantlySincePressed() and replaced with more descriptive methods
+  - Added support for relative or special path symbolic links when compressing/uncompressing zip archives and creating/reading files
+  - Ensured that File::replaceInternal does not fail with ACL errors on Windows
+  - Merged-in some Ogg-Vorbis security fixes
+  - Fixed a bug which would prevent a SystemTrayIconComponent from creating a native popup window on macOS
+  - Various Android and iOS fixes
+  - Added a "PIP Creator" utility tool to the Projucer
+  - Added options for setting plugin categories and characteristics with MultiChoicePropertyComponent in the Projucer
+  - Fixed a Projucer bug where the OSX base SDK version was not being set
+  - Added a command-line option to use LF as linefeeds rather than CRLF in the Projucer cleanup tools
+  - Multiple documentation updates
+
+Version 5.3.0
+  - Added support for Android OBOE (developer preview)
+  - Updated JUCE's MPE classes to comply with the new MMA-adopted specification
+  - Multiple documentation updates
+  - Restructured the examples and extras directories and updated all JUCE examples
+  - Multiple hosted parameter improvements
+  - Overhauled the GenericAudioProcessorEditor
+  - Added support for a subset of the Cockos VST extensions
+  - Added support for loading VST3 preset files
+  - Added boolean AudioProcessorParameters
+  - Added thread safe methods for getting and setting the AudioProcessorValueTreeState state
+  - Added customisable MacOS icons
 
 Version 5.2.1
   - Added native content sharing support for iOS and Android
@@ -13,7 +95,7 @@ Version 5.2.1
   - Added memory warning callbacks on iOS
   - Refactored iOSAudioDevice to support multi-channel audio devices and improve the handling of sample rate changes from other apps
   - Added SidePanel and BurgerMenu component classes
-  - Added PushNotifications support on OSX 
+  - Added PushNotifications support on OSX
   - Added support for VST3 SDK 3.6.8
   - Added support for loading VST3 preset files
   - Added higher-order ambisonics support
@@ -32,7 +114,7 @@ Version 5.2.1
 
 Version 5.2.0
   - Added a CMake exporter to the Projucer
-  - JUCE analytics module 
+  - JUCE analytics module
   - Added support for push notifications on iOS and Android
   - Added in-app purchase support for macOS
   - Added a plugin binary copy step to the Visual Studio exporter
@@ -47,9 +129,7 @@ Version 5.2.0
   - Implement Process::hide on mobile platforms
   - Added support for multi-touch drag and drop
   - Improved the performance of 3D rendering when multiple OpenGL contexts are used at the same time
-  - Tweaked the rate at which EdgeTable grows its internal storage, to improve performance 
-    rendering large and complex paths
-
+  - Tweaked the rate at which EdgeTable grows its internal storage, to improve performance rendering large and complex paths
 
 Version 5.1.2
   - Fixed multiple plugin-resizing bugs
@@ -288,4 +368,3 @@ Version 3.2.0
     and valueTreeChildOrderChanged() methods to include more info about
     exactly what changed
   - Over 400 minor changes, bug-fixes, documentation improvements, etc.
-

@@ -39,12 +39,14 @@ namespace juce
 
     Of course, since the view is a native object, it'll obliterate any
     juce components that may overlap this component, but that's life.
+
+    @tags{GUI}
 */
 class JUCE_API  AndroidViewComponent   : public Component
 {
 public:
     //==============================================================================
-    /** Create an initially-empty container. */
+    /** Create an initially-empty container */
     AndroidViewComponent();
 
     /** Destructor. */
@@ -69,7 +71,7 @@ public:
 
 private:
     class Pimpl;
-    ScopedPointer<Pimpl> pimpl;
+    std::unique_ptr<Pimpl> pimpl;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AndroidViewComponent)
 };

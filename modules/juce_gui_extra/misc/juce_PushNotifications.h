@@ -40,8 +40,10 @@ namespace juce
     remote notifications, inspect the Notification's fields for notification details.
     Bear in mind that some fields will not be available when receiving a remote
     notification.
+
+    @tags{GUI}
 */
-class JUCE_API PushNotifications
+class JUCE_API PushNotifications    : private DeletedAtShutdown
 {
 public:
    #ifndef DOXYGEN
@@ -53,13 +55,14 @@ public:
     struct Notification
     {
         Notification() = default;
+        Notification (const Notification& other);
 
         /** Checks whether a given notification is correctly configured for a given OS. */
         bool isValid() const noexcept;
 
         /** Represents an action on a notification that can be presented as a button or a text input.
             On Android, each notification has its action specified explicitly, on iOS you configure an
-            allowed set of actions on startup and pack them into categories (see @class Settings).
+            allowed set of actions on startup and pack them into categories (see Settings).
         */
         struct Action
         {
@@ -139,7 +142,7 @@ public:
                                   file, then the URL should be "sounds/my_sound.caf".
 
                                   For a custom sound on Android, set URL to the name of a raw resource file
-                                  (without an extention) that was included when exporting an Android project in
+                                  (without an extension) that was included when exporting an Android project in
                                   Projucer (see "Extra Android Raw Resources" setting). */
 
         var properties;      /**< Optional: collection of additional properties that may be passed as a dictionary. */
@@ -178,7 +181,7 @@ public:
                                      number of actions to be presented, so always present most important actions first.
                                      Available from Android API 16 or above. */
 
-        /**< Used to represent a progress of some operation. */
+        /** Used to represent a progress of some operation. */
         struct Progress
         {
             int  max = 0;               /**< Max possible value of a progress. A typical usecase is to set max to 100 and increment
@@ -238,10 +241,10 @@ public:
 
         LockScreenAppearance lockScreenAppearance = showPartially;  /**< Optional. */
 
-        ScopedPointer<Notification> publicVersion; /**< Optional: if you set lockScreenAppearance to showPartially,
-                                                        then you can provide "public version" of your notification
-                                                        that will be displayed on the lock screen. This way you can
-                                                        control what information is visible when the screen is locked. */
+        std::unique_ptr<Notification> publicVersion; /**< Optional: if you set lockScreenAppearance to showPartially,
+                                                          then you can provide "public version" of your notification
+                                                          that will be displayed on the lock screen. This way you can
+                                                          control what information is visible when the screen is locked. */
 
         String groupSortKey;         /**< Optional: Used to order notifications within the same group. Available from Android API 20 or above. */
         bool groupSummary = false;   /**< Optional: if true, then this notification will be a group summary of the group set with groupId.
@@ -252,7 +255,7 @@ public:
         Colour ledColour;     /**< Optional: Sets the led colour. The hardware will do its best to approximate the colour.
                                    The default colour will be used if ledColour is not set. */
 
-        /**< Allows to control the time the device's led is on and off. */
+        /** Allows to control the time the device's led is on and off. */
         struct LedBlinkPattern
         {
             int msToBeOn  = 0;   /**< The led will be on for the given number of milliseconds, after which it will turn off. */
@@ -281,7 +284,7 @@ public:
         bool alertOnlyOnce = false; /**< Optional: Set this flag if you would only like the sound, vibrate and ticker to be played if the notification
                                          is not already showing. */
 
-        /**< Controls timestamp visibility and format. */
+        /** Controls timestamp visibility and format. */
         enum TimestampVisibility
         {
             off,                    /**< Do not show timestamp. */
@@ -292,7 +295,7 @@ public:
 
         TimestampVisibility timestampVisibility = normal;  /**< Optional. */
 
-        /**< Controls badge icon type to use if a notification is shown as a badge. Available from Android API 26 or above. */
+        /** Controls badge icon type to use if a notification is shown as a badge. Available from Android API 26 or above. */
         enum BadgeIconType
         {
             none,
@@ -393,7 +396,7 @@ public:
         */
         struct Category
         {
-            juce::String identifier;         /**< unique indentifier */
+            juce::String identifier;         /**< unique identifier */
             juce::Array<Action> actions;     /**< optional list of actions within this category */
             bool sendDismissAction = false;  /**< whether dismiss action will be sent to the app (from iOS 10 only) */
         };
@@ -461,7 +464,7 @@ public:
         Notification::LockScreenAppearance lockScreenAppearance = Notification::showPartially;  /**< Optional. */
 
         String description;                 /**< Optional: user visible description of the channel. */
-        String groupId;                     /**< Required: group this channel belongs to (see @class ChannelGroup). */
+        String groupId;                     /**< Required: group this channel belongs to (see ChannelGroup). */
         Colour ledColour;                   /**< Optional: sets the led colour for notifications in this channel. */
         bool bypassDoNotDisturb = false;    /**< Optional: true if notifications in this channel can bypass do not disturb setting. */
         bool canShowBadge = false;          /**< Optional: true if notifications in this channel can show badges in a Launcher application. */
@@ -590,7 +593,7 @@ public:
     */
     struct Listener
     {
-        virtual ~Listener() {}
+        virtual ~Listener() = default;
 
         /** This callback will be called after you call requestSettingsUsed() or
             requestPermissionsWithSettings().
@@ -612,7 +615,7 @@ public:
             notification was received when the app was in the foreground already. On iOS 10 it will be
             called when a user presses on a notification
 
-            Note: on Android, if remote notification was received while the app was in the background and
+            Note: On Android, if remote notification was received while the app was in the background and
             then user pressed on it, the notification object received in this callback will contain only
             "properties" member set. Hence, if you want to know what was the notification title, content
             etc, you need to set them as additional properties, so that you will be able to restore them
@@ -691,7 +694,7 @@ public:
 
 private:
     PushNotifications();
-    ~PushNotifications();
+    ~PushNotifications() override;
 
     ListenerList<PushNotifications::Listener> listeners;
 
@@ -708,7 +711,7 @@ private:
     struct Pimpl;
     friend struct Pimpl;
 
-    ScopedPointer<Pimpl> pimpl;
+    std::unique_ptr<Pimpl> pimpl;
   #endif
 };
 

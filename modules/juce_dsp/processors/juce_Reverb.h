@@ -31,14 +31,15 @@ namespace dsp
 
 /**
     Processor wrapper around juce::Reverb for easy integration into ProcessorChain.
+
+    @tags{DSP}
 */
 class Reverb
 {
 public:
     //==============================================================================
     /** Creates an uninitialised Reverb processor. Call prepare() before first use. */
-    Reverb()
-    {}
+    Reverb() = default;
 
     //==============================================================================
     using Parameters = juce::Reverb::Parameters;

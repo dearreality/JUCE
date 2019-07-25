@@ -36,7 +36,7 @@
 
   ID:                 juce_dsp
   vendor:             juce
-  version:            5.2.1
+  version:            5.4.3
   name:               JUCE DSP classes
   description:        Classes for audio buffer manipulation, digital audio processing, filtering, oversampling, fast math functions etc.
   website:            http://www.juce.com/juce
@@ -53,10 +53,17 @@
 
 
 #pragma once
+
 #define JUCE_DSP_H_INCLUDED
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
+
+#if ! JUCE_HAS_CONSTEXPR
+ #ifndef JUCE_DEMO_RUNNER
+  #error "The juce_dsp module requires a compiler that supports constexpr"
+ #endif
+#else
 
 #if defined(_M_X64) || defined(__amd64__) || defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
 
@@ -186,20 +193,19 @@
 //==============================================================================
 #undef Complex  // apparently some C libraries actually define these symbols (!)
 #undef Factor
+#undef check
 
 namespace juce
 {
     namespace dsp
     {
-
         template <typename Type>
-        using Complex = ::std::complex<Type>;
+        using Complex = std::complex<Type>;
 
         //==============================================================================
         namespace util
         {
             /** Use this function to prevent denormals on intel CPUs.
-
                 This function will work with both primitives and simple containers.
             */
           #if JUCE_DSP_ENABLE_SNAP_TO_ZERO
@@ -245,6 +251,7 @@ namespace juce
 #include "maths/juce_Polynomial.h"
 #include "maths/juce_FastMathApproximations.h"
 #include "maths/juce_LookupTable.h"
+#include "maths/juce_LogRampedValue.h"
 #include "containers/juce_AudioBlock.h"
 #include "processors/juce_ProcessContext.h"
 #include "processors/juce_ProcessorWrapper.h"
@@ -264,3 +271,5 @@ namespace juce
 #include "frequency/juce_Convolution.h"
 #include "frequency/juce_Windowing.h"
 #include "filter_design/juce_FilterDesign.h"
+
+#endif

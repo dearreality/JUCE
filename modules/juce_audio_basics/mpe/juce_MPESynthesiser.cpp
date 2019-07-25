@@ -26,7 +26,7 @@ namespace juce
 MPESynthesiser::MPESynthesiser()
 {
     MPEZoneLayout zoneLayout;
-    zoneLayout.addZone ({ 1, 15 });
+    zoneLayout.setLowerZone (15);
     setZoneLayout (zoneLayout);
 }
 
@@ -42,13 +42,16 @@ MPESynthesiser::~MPESynthesiser()
 void MPESynthesiser::startVoice (MPESynthesiserVoice* voice, MPENote noteToStart)
 {
     jassert (voice != nullptr);
+
     voice->currentlyPlayingNote = noteToStart;
+    voice->noteOnTime = lastNoteOnCounter++;
     voice->noteStarted();
 }
 
 void MPESynthesiser::stopVoice (MPESynthesiserVoice* voice, MPENote noteToStop, bool allowTailOff)
 {
     jassert (voice != nullptr);
+
     voice->currentlyPlayingNote = noteToStop;
     voice->noteStopped (allowTailOff);
 }
@@ -122,7 +125,7 @@ void MPESynthesiser::noteReleased (MPENote finishedNote)
 {
     const ScopedLock sl (voicesLock);
 
-    for (int i = voices.size(); --i >= 0;)
+    for (auto i = voices.size(); --i >= 0;)
     {
         auto* voice = voices.getUnchecked (i);
 
@@ -139,7 +142,7 @@ void MPESynthesiser::setCurrentPlaybackSampleRate (const double newRate)
 
     turnOffAllVoices (false);
 
-    for (int i = voices.size(); --i >= 0;)
+    for (auto i = voices.size(); --i >= 0;)
         voices.getUnchecked (i)->setCurrentSampleRate (newRate);
 }
 
@@ -197,7 +200,7 @@ MPESynthesiserVoice* MPESynthesiser::findVoiceToSteal (MPENote noteToStealVoiceF
         // compilers generating code containing heap allocations..
         struct Sorter
         {
-            bool operator() (const MPESynthesiserVoice* a, const MPESynthesiserVoice* b) const noexcept { return a->wasStartedBefore (*b); }
+            bool operator() (const MPESynthesiserVoice* a, const MPESynthesiserVoice* b) const noexcept { return a->noteOnTime < b->noteOnTime; }
         };
 
         std::sort (usableVoices.begin(), usableVoices.end(), Sorter());
@@ -287,7 +290,7 @@ void MPESynthesiser::reduceNumVoices (const int newNumVoices)
 
     while (voices.size() > newNumVoices)
     {
-        if (MPESynthesiserVoice* voice = findFreeVoice ({}, true))
+        if (auto* voice = findFreeVoice ({}, true))
             voices.removeObject (voice);
         else
             voices.remove (0); // if there's no voice to steal, kill the oldest voice

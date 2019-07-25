@@ -111,7 +111,7 @@ public:
         lookAndFeelChanged();
     }
 
-    ~FindPanel()
+    ~FindPanel() override
     {
         Desktop::getInstance().removeFocusChangeListener (this);
     }
@@ -173,25 +173,28 @@ public:
     {
         if (hasAddButton)
         {
-            addAndMakeVisible (addButton = new IconButton ("Add", &getIcons().plus));
+            addButton.reset (new IconButton ("Add", &getIcons().plus));
+            addAndMakeVisible (addButton.get());
             addButton->onClick = [this] { showAddMenu(); };
         }
 
         if (hasSettingsButton)
         {
-            addAndMakeVisible (settingsButton = new IconButton ("Settings", &getIcons().settings));
+            settingsButton.reset (new IconButton ("Settings", &getIcons().settings));
+            addAndMakeVisible (settingsButton.get());
             settingsButton->onClick = [this] { showSettings(); };
         }
 
         if (hasFindPanel)
         {
-            addAndMakeVisible (findPanel = new FindPanel ([this] (const String& filter) { treeToDisplay->rootItem->setSearchFilter (filter); }));
+            findPanel.reset (new FindPanel ([this] (const String& filter) { treeToDisplay->rootItem->setSearchFilter (filter); }));
+            addAndMakeVisible (findPanel.get());
         }
 
-        addAndMakeVisible (treeToDisplay);
+        addAndMakeVisible (treeToDisplay.get());
     }
 
-    ~ConcertinaTreeComponent()
+    ~ConcertinaTreeComponent() override
     {
         treeToDisplay.reset();
         addButton.reset();
@@ -224,9 +227,9 @@ public:
     TreePanelBase* getTree() const noexcept    { return treeToDisplay.get(); }
 
 private:
-    ScopedPointer<TreePanelBase> treeToDisplay;
-    ScopedPointer<IconButton> addButton, settingsButton;
-    ScopedPointer<FindPanel> findPanel;
+    std::unique_ptr<TreePanelBase> treeToDisplay;
+    std::unique_ptr<IconButton> addButton, settingsButton;
+    std::unique_ptr<FindPanel> findPanel;
 
     void showAddMenu()
     {

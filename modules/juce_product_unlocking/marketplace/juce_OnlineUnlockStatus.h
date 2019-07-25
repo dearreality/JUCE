@@ -53,6 +53,8 @@ namespace juce
     register, see the OnlineUnlockForm class.
 
     @see OnlineUnlockForm, KeyGeneration
+
+    @tags{ProductUnlocking}
 */
 class JUCE_API  OnlineUnlockStatus
 {
@@ -124,6 +126,9 @@ public:
         cancel any WebInputStreams that may be connecting.
     */
     virtual void userCancelled();
+
+    virtual String getMessageForConnectionFailure (bool isInternetConnectionWorking);
+    virtual String getMessageForUnexpectedReply();
 
     //==============================================================================
     // The following methods can be called by your app:

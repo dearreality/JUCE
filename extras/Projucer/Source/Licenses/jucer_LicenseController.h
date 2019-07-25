@@ -103,9 +103,6 @@ private:
    #if ! JUCER_ENABLE_GPL_MODE
     //==============================================================================
     struct ModalCompletionCallback;
-    friend struct ModalCompletionCallback;
-
-    friend struct ContainerDeletePolicy<LicenseThread>;
     friend struct LicenseThread;
 
     //==============================================================================
@@ -115,7 +112,7 @@ private:
     void queryWebview (const String&, const String&, HashMap<String, String>&);
 
     //==============================================================================
-    ScopedPointer<LicenseThread> thread;
+    std::unique_ptr<LicenseThread> thread;
     LicenseWebview* licenseWebview = nullptr;
    #endif
 

@@ -37,7 +37,7 @@ public:
                    JucerDocument* const loadedDocument,
                    const bool alwaysFillBackground);
 
-    ~TestComponent();
+    ~TestComponent() override;
 
     //==============================================================================
     void setFilename (const String& fn);
@@ -64,7 +64,7 @@ public:
 
 private:
     JucerDocument* ownerDocument;
-    ScopedPointer<JucerDocument> loadedDocument;
+    std::unique_ptr<JucerDocument> loadedDocument;
     String filename, constructorParams;
     Time lastModificationTime;
     const bool alwaysFillBackground;

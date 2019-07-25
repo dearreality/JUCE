@@ -39,6 +39,8 @@ namespace juce
     with web servers and other time consuming destinations.
 
     @see Analytics, ThreadedAnalyticsDestination
+
+    @tags{Analytics}
 */
 struct JUCE_API  AnalyticsDestination
 {
@@ -78,7 +80,7 @@ struct JUCE_API  AnalyticsDestination
     AnalyticsDestination() = default;
 
     /** Destructor. */
-    virtual ~AnalyticsDestination() {}
+    virtual ~AnalyticsDestination() = default;
 
     /**
         When an AnalyticsDestination is added to an Analytics object this method

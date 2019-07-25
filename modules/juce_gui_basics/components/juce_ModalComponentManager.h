@@ -37,6 +37,8 @@ namespace juce
 
     @see Component::enterModalState, Component::exitModalState, Component::isCurrentlyModal,
          Component::getCurrentlyModalComponent, Component::isCurrentlyBlockedByAnotherModalComponent
+
+    @tags{GUI}
 */
 class JUCE_API  ModalComponentManager   : private AsyncUpdater,
                                           private DeletedAtShutdown
@@ -55,10 +57,10 @@ public:
     {
     public:
         /** */
-        Callback() {}
+        Callback() = default;
 
         /** Destructor. */
-        virtual ~Callback() {}
+        virtual ~Callback() = default;
 
         /** Called to indicate that a modal component has been dismissed.
 
@@ -132,17 +134,16 @@ protected:
     ModalComponentManager();
 
     /** Destructor. */
-    ~ModalComponentManager();
+    ~ModalComponentManager() override;
 
     /** @internal */
     void handleAsyncUpdate() override;
 
 private:
     //==============================================================================
-    struct ModalItem;
-
     friend class Component;
-    friend struct ContainerDeletePolicy<ModalItem>;
+
+    struct ModalItem;
     OwnedArray<ModalItem> stack;
 
     void startModal (Component*, bool autoDelete);
@@ -156,8 +157,10 @@ private:
 /**
     This class provides some handy utility methods for creating ModalComponentManager::Callback
     objects that will invoke a static function with some parameters when a modal component is dismissed.
+
+    @tags{GUI}
 */
-class ModalCallbackFunction
+class JUCE_API ModalCallbackFunction
 {
 public:
     /** This is a utility function to create a ModalComponentManager::Callback that will

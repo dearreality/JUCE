@@ -30,6 +30,10 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.hardware.camera2.*;
+import android.database.ContentObserver;
+import android.media.session.*;
+import android.media.MediaMetadata;
 import android.net.http.SslError;
 import android.net.Uri;
 import android.os.Bundle;
@@ -93,8 +97,11 @@ public class AudioPerformanceTest   extends Activity
     //==============================================================================
     public boolean isPermissionDeclaredInManifest (int permissionID)
     {
-        String permissionToCheck = getAndroidPermissionName(permissionID);
+        return isPermissionDeclaredInManifest (getAndroidPermissionName (permissionID));
+    }
 
+    public boolean isPermissionDeclaredInManifest (String permissionToCheck)
+    {
         try
         {
             PackageInfo info = getPackageManager().getPackageInfo(getApplicationContext().getPackageName(), PackageManager.GET_PERMISSIONS);
@@ -119,6 +126,7 @@ public class AudioPerformanceTest   extends Activity
     private static final int JUCE_PERMISSIONS_BLUETOOTH_MIDI = 2;
     private static final int JUCE_PERMISSIONS_READ_EXTERNAL_STORAGE = 3;
     private static final int JUCE_PERMISSIONS_WRITE_EXTERNAL_STORAGE = 4;
+    private static final int JUCE_PERMISSIONS_CAMERA = 5;
 
     private static String getAndroidPermissionName (int permissionID)
     {
@@ -129,6 +137,7 @@ public class AudioPerformanceTest   extends Activity
                                                           // use string value as this is not defined in SDKs < 16
             case JUCE_PERMISSIONS_READ_EXTERNAL_STORAGE:  return "android.permission.READ_EXTERNAL_STORAGE";
             case JUCE_PERMISSIONS_WRITE_EXTERNAL_STORAGE: return Manifest.permission.WRITE_EXTERNAL_STORAGE;
+            case JUCE_PERMISSIONS_CAMERA:                 return Manifest.permission.CAMERA;
         }
 
         // unknown permission ID!
@@ -1205,6 +1214,7 @@ public class AudioPerformanceTest   extends Activity
         setVolumeControlStream (AudioManager.STREAM_MUSIC);
 
         permissionCallbackPtrMap = new HashMap<Integer, Long>();
+        appPausedResumedListeners = new HashMap<Long, AppPausedResumedListener>();
     }
 
     @Override
@@ -1221,6 +1231,11 @@ public class AudioPerformanceTest   extends Activity
     {
         suspendApp();
 
+        Long[] keys = appPausedResumedListeners.keySet().toArray (new Long[appPausedResumedListeners.keySet().size()]);
+
+        for (Long k : keys)
+            appPausedResumedListeners.get (k).appPaused();
+
         try
         {
             Thread.sleep (1000); // This is a bit of a hack to avoid some hard-to-track-down
@@ -1236,9 +1251,10 @@ public class AudioPerformanceTest   extends Activity
         super.onResume();
         resumeApp();
 
-        // Ensure that navigation/status bar visibility is correctly restored.
-        for (int i = 0; i < viewHolder.getChildCount(); ++i)
-            ((ComponentPeerView) viewHolder.getChildAt (i)).appResumed();
+        Long[] keys = appPausedResumedListeners.keySet().toArray (new Long[appPausedResumedListeners.keySet().size()]);
+
+        for (Long k : keys)
+            appPausedResumedListeners.get (k).appResumed();
     }
 
     @Override
@@ -1252,6 +1268,32 @@ public class AudioPerformanceTest   extends Activity
     {
         launchApp (getApplicationInfo().publicSourceDir,
                    getApplicationInfo().dataDir);
+    }
+
+    // Need to override this as the default implementation always finishes the activity.
+    @Override
+    public void onBackPressed()
+    {
+        ComponentPeerView focusedView = getViewWithFocusOrDefaultView();
+
+        if (focusedView == null)
+            return;
+
+        focusedView.backButtonPressed();
+    }
+
+    private ComponentPeerView getViewWithFocusOrDefaultView()
+    {
+        for (int i = 0; i < viewHolder.getChildCount(); ++i)
+        {
+            if (viewHolder.getChildAt (i).hasFocus())
+                return (ComponentPeerView) viewHolder.getChildAt (i);
+        }
+
+        if (viewHolder.getChildCount() > 0)
+            return (ComponentPeerView) viewHolder.getChildAt (0);
+
+        return null;
     }
 
     //==============================================================================
@@ -1339,11 +1381,14 @@ public class AudioPerformanceTest   extends Activity
     {
         ComponentPeerView v = new ComponentPeerView (this, opaque, host);
         viewHolder.addView (v);
+        addAppPausedResumedListener (v, host);
         return v;
     }
 
     public final void deleteView (ComponentPeerView view)
     {
+        removeAppPausedResumedListener (view, view.host);
+
         view.host = 0;
 
         ViewGroup group = (ViewGroup) (view.getParent());
@@ -1449,7 +1494,9 @@ public class AudioPerformanceTest   extends Activity
     public final String getClipboardContent()
     {
         ClipboardManager clipboard = (ClipboardManager) getSystemService (CLIPBOARD_SERVICE);
-        return clipboard.getText().toString();
+
+        CharSequence content = clipboard.getText();
+        return content != null ? content.toString() : new String();
     }
 
     public final void setClipboardContent (String newText)
@@ -1562,8 +1609,27 @@ public class AudioPerformanceTest   extends Activity
     public native void alertDismissed (long callback, int id);
 
     //==============================================================================
+    public interface AppPausedResumedListener
+    {
+        void appPaused();
+        void appResumed();
+    }
+
+    private Map<Long, AppPausedResumedListener> appPausedResumedListeners;
+
+    public void addAppPausedResumedListener (AppPausedResumedListener l, long listenerHost)
+    {
+        appPausedResumedListeners.put (new Long (listenerHost), l);
+    }
+
+    public void removeAppPausedResumedListener (AppPausedResumedListener l, long listenerHost)
+    {
+        appPausedResumedListeners.remove (new Long (listenerHost));
+    }
+
+    //==============================================================================
     public final class ComponentPeerView extends ViewGroup
-                                         implements View.OnFocusChangeListener
+                                         implements View.OnFocusChangeListener, AppPausedResumedListener
     {
         public ComponentPeerView (Context context, boolean opaque_, long host)
         {
@@ -1690,6 +1756,7 @@ public class AudioPerformanceTest   extends Activity
         private native void handleKeyDown (long host, int keycode, int textchar);
         private native void handleKeyUp (long host, int keycode, int textchar);
         private native void handleBackButton (long host);
+        private native void handleKeyboardHidden (long host);
 
         public void showKeyboard (String type)
         {
@@ -1701,12 +1768,22 @@ public class AudioPerformanceTest   extends Activity
                 {
                     imm.showSoftInput (this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
                     imm.setInputMethod (getWindowToken(), type);
+                    keyboardDismissListener.startListening();
                 }
                 else
                 {
                     imm.hideSoftInputFromWindow (getWindowToken(), 0);
+                    keyboardDismissListener.stopListening();
                 }
             }
+        }
+
+        public void backButtonPressed()
+        {
+            if (host == 0)
+                return;
+
+            handleBackButton (host);
         }
 
         @Override
@@ -1722,7 +1799,7 @@ public class AudioPerformanceTest   extends Activity
                     return super.onKeyDown (keyCode, event);
                 case KeyEvent.KEYCODE_BACK:
                 {
-                    handleBackButton (host);
+                    ((Activity) getContext()).onBackPressed();
                     return true;
                 }
 
@@ -1762,6 +1839,65 @@ public class AudioPerformanceTest   extends Activity
 
             return false;
         }
+
+        //==============================================================================
+        private final class KeyboardDismissListener
+        {
+            public KeyboardDismissListener (ComponentPeerView viewToUse)
+            {
+                view = viewToUse;
+            }
+
+            private void startListening()
+            {
+                view.getViewTreeObserver().addOnGlobalLayoutListener(viewTreeObserver);
+            }
+
+            private void stopListening()
+            {
+                view.getViewTreeObserver().removeGlobalOnLayoutListener(viewTreeObserver);
+            }
+
+            private class TreeObserver implements ViewTreeObserver.OnGlobalLayoutListener
+            {
+                TreeObserver()
+                {
+                    keyboardShown = false;
+                }
+
+                @Override
+                public void onGlobalLayout()
+                {
+                    Rect r = new Rect();
+
+                    ViewGroup parentView = (ViewGroup) getParent();
+
+                    if (parentView == null)
+                        return;
+
+                    parentView.getWindowVisibleDisplayFrame (r);
+
+                    int diff = parentView.getHeight() - (r.bottom - r.top);
+
+                    // Arbitrary threshold, surely keyboard would take more than 20 pix.
+                    if (diff < 20 && keyboardShown)
+                    {
+                        keyboardShown = false;
+                        handleKeyboardHidden (view.host);
+                    }
+
+                    if (! keyboardShown && diff > 20)
+                        keyboardShown = true;
+                };
+
+                private boolean keyboardShown;
+            };
+
+            private ComponentPeerView view;
+            private TreeObserver viewTreeObserver = new TreeObserver();
+        }
+
+        private KeyboardDismissListener keyboardDismissListener = new KeyboardDismissListener(this);
 
         // this is here to make keyboard entry work on a Galaxy Tab2 10.1
         @Override
@@ -1841,13 +1977,25 @@ public class AudioPerformanceTest   extends Activity
         }
 
         //==============================================================================
+        private native void handleAppPaused (long host);
         private native void handleAppResumed (long host);
 
+        @Override
+        public void appPaused()
+        {
+            if (host == 0)
+                return;
+
+            handleAppPaused (host);
+        }
+
+        @Override
         public void appResumed()
         {
             if (host == 0)
                 return;
 
+            // Ensure that navigation/status bar visibility is correctly restored.
             handleAppResumed (host);
         }
     }
@@ -1857,11 +2005,13 @@ public class AudioPerformanceTest   extends Activity
                                           implements SurfaceHolder.Callback
     {
         private long nativeContext = 0;
+        private boolean forVideo;
 
-        NativeSurfaceView (Context context, long nativeContextPtr)
+        NativeSurfaceView (Context context, long nativeContextPtr, boolean createdForVideo)
         {
             super (context);
             nativeContext = nativeContextPtr;
+            forVideo = createdForVideo;
         }
 
         public Surface getNativeSurface()
@@ -1879,38 +2029,51 @@ public class AudioPerformanceTest   extends Activity
         @Override
         public void surfaceChanged (SurfaceHolder holder, int format, int width, int height)
         {
-            surfaceChangedNative (nativeContext, holder, format, width, height);
+            if (forVideo)
+                surfaceChangedNativeVideo (nativeContext, holder, format, width, height);
+            else
+                surfaceChangedNative (nativeContext, holder, format, width, height);
         }
 
         @Override
         public void surfaceCreated (SurfaceHolder holder)
         {
-            surfaceCreatedNative (nativeContext, holder);
+            if (forVideo)
+                surfaceCreatedNativeVideo (nativeContext, holder);
+            else
+                surfaceCreatedNative (nativeContext, holder);
         }
 
         @Override
         public void surfaceDestroyed (SurfaceHolder holder)
         {
-            surfaceDestroyedNative (nativeContext, holder);
+            if (forVideo)
+                surfaceDestroyedNativeVideo (nativeContext, holder);
+            else
+                surfaceDestroyedNative (nativeContext, holder);
         }
 
         @Override
         protected void dispatchDraw (Canvas canvas)
         {
             super.dispatchDraw (canvas);
-            dispatchDrawNative (nativeContext, canvas);
+
+            if (forVideo)
+                dispatchDrawNativeVideo (nativeContext, canvas);
+            else
+                dispatchDrawNative (nativeContext, canvas);
         }
 
         //==============================================================================
         @Override
-        protected void onAttachedToWindow ()
+        protected void onAttachedToWindow()
         {
             super.onAttachedToWindow();
             getHolder().addCallback (this);
         }
 
         @Override
-        protected void onDetachedFromWindow ()
+        protected void onDetachedFromWindow()
         {
             super.onDetachedFromWindow();
             getHolder().removeCallback (this);
@@ -1922,11 +2085,17 @@ public class AudioPerformanceTest   extends Activity
         private native void surfaceDestroyedNative (long nativeContextptr, SurfaceHolder holder);
         private native void surfaceChangedNative (long nativeContextptr, SurfaceHolder holder,
                                                   int format, int width, int height);
+
+        private native void dispatchDrawNativeVideo (long nativeContextPtr, Canvas canvas);
+        private native void surfaceCreatedNativeVideo (long nativeContextptr, SurfaceHolder holder);
+        private native void surfaceDestroyedNativeVideo (long nativeContextptr, SurfaceHolder holder);
+        private native void surfaceChangedNativeVideo (long nativeContextptr, SurfaceHolder holder,
+                                                       int format, int width, int height);
     }
 
-    public NativeSurfaceView createNativeSurfaceView (long nativeSurfacePtr)
+    public NativeSurfaceView createNativeSurfaceView (long nativeSurfacePtr, boolean forVideo)
     {
-        return new NativeSurfaceView (this, nativeSurfacePtr);
+        return new NativeSurfaceView (this, nativeSurfacePtr, forVideo);
     }
 
     //==============================================================================
@@ -2516,6 +2685,320 @@ public class AudioPerformanceTest   extends Activity
         private long host;
         private final Object hostLock = new Object();
     }
+
+
+    //==============================================================================
+    public class CameraDeviceStateCallback  extends CameraDevice.StateCallback
+    {
+        private native void cameraDeviceStateClosed       (long host, CameraDevice camera);
+        private native void cameraDeviceStateDisconnected (long host, CameraDevice camera);
+        private native void cameraDeviceStateError        (long host, CameraDevice camera, int error);
+        private native void cameraDeviceStateOpened       (long host, CameraDevice camera);
+
+        CameraDeviceStateCallback (long hostToUse)
+        {
+            host = hostToUse;
+        }
+
+        @Override
+        public void onClosed (CameraDevice camera)
+        {
+            cameraDeviceStateClosed (host, camera);
+        }
+
+        @Override
+        public void onDisconnected (CameraDevice camera)
+        {
+            cameraDeviceStateDisconnected (host, camera);
+        }
+
+        @Override
+        public void onError (CameraDevice camera, int error)
+        {
+            cameraDeviceStateError (host, camera, error);
+        }
+
+        @Override
+        public void onOpened (CameraDevice camera)
+        {
+            cameraDeviceStateOpened (host, camera);
+        }
+
+        private long host;
+    }
+
+    //==============================================================================
+    public class CameraCaptureSessionStateCallback  extends CameraCaptureSession.StateCallback
+    {
+        private native void cameraCaptureSessionActive          (long host, CameraCaptureSession session);
+        private native void cameraCaptureSessionClosed          (long host, CameraCaptureSession session);
+        private native void cameraCaptureSessionConfigureFailed (long host, CameraCaptureSession session);
+        private native void cameraCaptureSessionConfigured      (long host, CameraCaptureSession session);
+        private native void cameraCaptureSessionReady           (long host, CameraCaptureSession session);
+
+        CameraCaptureSessionStateCallback (long hostToUse)
+        {
+            host = hostToUse;
+        }
+
+        @Override
+        public void onActive (CameraCaptureSession session)
+        {
+            cameraCaptureSessionActive (host, session);
+        }
+
+        @Override
+        public void onClosed (CameraCaptureSession session)
+        {
+            cameraCaptureSessionClosed (host, session);
+        }
+
+        @Override
+        public void onConfigureFailed (CameraCaptureSession session)
+        {
+            cameraCaptureSessionConfigureFailed (host, session);
+        }
+
+        @Override
+        public void onConfigured (CameraCaptureSession session)
+        {
+            cameraCaptureSessionConfigured (host, session);
+        }
+
+        @Override
+        public void onReady (CameraCaptureSession session)
+        {
+            cameraCaptureSessionReady (host, session);
+        }
+
+        private long host;
+    }
+
+    //==============================================================================
+    public class CameraCaptureSessionCaptureCallback    extends CameraCaptureSession.CaptureCallback
+    {
+        private native void cameraCaptureSessionCaptureCompleted  (long host, boolean isPreview, CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result);
+        private native void cameraCaptureSessionCaptureFailed     (long host, boolean isPreview, CameraCaptureSession session, CaptureRequest request, CaptureFailure failure);
+        private native void cameraCaptureSessionCaptureProgressed (long host, boolean isPreview, CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult);
+        private native void cameraCaptureSessionCaptureStarted    (long host, boolean isPreview, CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber);
+        private native void cameraCaptureSessionCaptureSequenceAborted   (long host, boolean isPreview, CameraCaptureSession session, int sequenceId);
+        private native void cameraCaptureSessionCaptureSequenceCompleted (long host, boolean isPreview, CameraCaptureSession session, int sequenceId, long frameNumber);
+
+        CameraCaptureSessionCaptureCallback (long hostToUse, boolean shouldBePreview)
+        {
+            host = hostToUse;
+            preview = shouldBePreview;
+        }
+
+        @Override
+        public void onCaptureCompleted (CameraCaptureSession session, CaptureRequest request,
+                                        TotalCaptureResult result)
+        {
+            cameraCaptureSessionCaptureCompleted (host, preview, session, request, result);
+        }
+
+        @Override
+        public void onCaptureFailed (CameraCaptureSession session, CaptureRequest request, CaptureFailure failure)
+        {
+            cameraCaptureSessionCaptureFailed (host, preview, session, request, failure);
+        }
+
+        @Override
+        public void onCaptureProgressed (CameraCaptureSession session, CaptureRequest request,
+                                         CaptureResult partialResult)
+        {
+            cameraCaptureSessionCaptureProgressed (host, preview, session, request, partialResult);
+        }
+
+        @Override
+        public void onCaptureSequenceAborted (CameraCaptureSession session, int sequenceId)
+        {
+            cameraCaptureSessionCaptureSequenceAborted (host, preview, session, sequenceId);
+        }
+
+        @Override
+        public void onCaptureSequenceCompleted (CameraCaptureSession session, int sequenceId, long frameNumber)
+        {
+            cameraCaptureSessionCaptureSequenceCompleted (host, preview, session, sequenceId, frameNumber);
+        }
+
+        @Override
+        public void onCaptureStarted (CameraCaptureSession session, CaptureRequest request, long timestamp,
+                                      long frameNumber)
+        {
+            cameraCaptureSessionCaptureStarted (host, preview, session, request, timestamp, frameNumber);
+        }
+
+        private long host;
+        private boolean preview;
+    }
+
+    //==============================================================================
+    public class JuceOrientationEventListener    extends OrientationEventListener
+    {
+        private native void deviceOrientationChanged (long host, int orientation);
+
+        public JuceOrientationEventListener (long hostToUse, Context context, int rate)
+        {
+            super (context, rate);
+
+            host = hostToUse;
+        }
+
+        @Override
+        public void onOrientationChanged (int orientation)
+        {
+            deviceOrientationChanged (host, orientation);
+        }
+
+        private long host;
+    }
+
+
+    //==============================================================================
+    public class MediaControllerCallback  extends MediaController.Callback
+    {
+        private native void mediaControllerAudioInfoChanged     (long host, MediaController.PlaybackInfo info);
+        private native void mediaControllerMetadataChanged      (long host, MediaMetadata metadata);
+        private native void mediaControllerPlaybackStateChanged (long host, PlaybackState state);
+        private native void mediaControllerSessionDestroyed     (long host);
+
+        MediaControllerCallback (long hostToUse)
+        {
+            host = hostToUse;
+        }
+
+        @Override
+        public void onAudioInfoChanged (MediaController.PlaybackInfo info)
+        {
+            mediaControllerAudioInfoChanged (host, info);
+        }
+
+        @Override
+        public void onMetadataChanged (MediaMetadata metadata)
+        {
+            mediaControllerMetadataChanged (host, metadata);
+        }
+
+        @Override
+        public void onPlaybackStateChanged (PlaybackState state)
+        {
+             mediaControllerPlaybackStateChanged (host, state);
+        }
+
+        @Override
+        public void onQueueChanged (List<MediaSession.QueueItem> queue) {}
+
+        @Override
+        public void onSessionDestroyed()
+        {
+            mediaControllerSessionDestroyed (host);
+        }
+
+        private long host;
+    }
+
+    //==============================================================================
+    public class MediaSessionCallback  extends MediaSession.Callback
+    {
+        private native void mediaSessionPause           (long host);
+        private native void mediaSessionPlay            (long host);
+        private native void mediaSessionPlayFromMediaId (long host, String mediaId, Bundle extras);
+        private native void mediaSessionSeekTo          (long host, long pos);
+        private native void mediaSessionStop            (long host);
+
+
+        MediaSessionCallback (long hostToUse)
+        {
+            host = hostToUse;
+        }
+
+        @Override
+        public void onPause()
+        {
+            mediaSessionPause (host);
+        }
+
+        @Override
+        public void onPlay()
+        {
+            mediaSessionPlay (host);
+        }
+
+        @Override
+        public void onPlayFromMediaId (String mediaId, Bundle extras)
+        {
+            mediaSessionPlayFromMediaId (host, mediaId, extras);
+        }
+
+        @Override
+        public void onSeekTo (long pos)
+        {
+            mediaSessionSeekTo (host, pos);
+        }
+
+        @Override
+        public void onStop()
+        {
+            mediaSessionStop (host);
+        }
+
+        @Override
+        public void onFastForward() {}
+
+        @Override
+        public boolean onMediaButtonEvent (Intent mediaButtonIntent)
+        {
+            return true;
+        }
+
+        @Override
+        public void onRewind() {}
+
+        @Override
+        public void onSkipToNext() {}
+
+        @Override
+        public void onSkipToPrevious() {}
+
+        @Override
+        public void onSkipToQueueItem (long id) {}
+
+        private long host;
+    }
+
+    //==============================================================================
+    public class SystemVolumeObserver extends ContentObserver
+    {
+        private native void mediaSessionSystemVolumeChanged (long host);
+
+        SystemVolumeObserver (Activity activityToUse, long hostToUse)
+        {
+            super (null);
+
+            activity = activityToUse;
+            host = hostToUse;
+        }
+
+        void setEnabled (boolean shouldBeEnabled)
+        {
+            if (shouldBeEnabled)
+                activity.getApplicationContext().getContentResolver().registerContentObserver (android.provider.Settings.System.CONTENT_URI, true, this);
+            else
+                activity.getApplicationContext().getContentResolver().unregisterContentObserver (this);
+        }
+
+        @Override
+        public void onChange (boolean selfChange, Uri uri)
+        {
+            if (uri.toString().startsWith ("content://settings/system/volume_music"))
+                mediaSessionSystemVolumeChanged (host);
+        }
+
+        private Activity activity;
+        private long host;
+    }
+
 
     //==============================================================================
     public static final String getLocaleValue (boolean isRegion)

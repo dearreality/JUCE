@@ -50,10 +50,10 @@ struct MidiKeyboardComponent::UpDownButton  : public Button
         owner.setLowestVisibleKey (note * 12);
     }
 
-    void paintButton (Graphics& g, bool isMouseOverButton, bool isButtonDown) override
+    void paintButton (Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
     {
         owner.drawUpDownButton (g, getWidth(), getHeight(),
-                                isMouseOverButton, isButtonDown,
+                                shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown,
                                 delta > 0);
     }
 
@@ -104,6 +104,17 @@ void MidiKeyboardComponent::setKeyWidth (float widthInPixels)
     if (keyWidth != widthInPixels) // Prevent infinite recursion if the width is being computed in a 'resized()' call-back
     {
         keyWidth = widthInPixels;
+        resized();
+    }
+}
+
+void MidiKeyboardComponent::setScrollButtonWidth (int widthInPixels)
+{
+    jassert (widthInPixels > 0);
+
+    if (scrollButtonWidth != widthInPixels)
+    {
+        scrollButtonWidth = widthInPixels;
         resized();
     }
 }
@@ -307,7 +318,7 @@ int MidiKeyboardComponent::remappedXYToNote (Point<float> pos, float& mousePosit
                 {
                     if (getKeyPos (note).contains (pos.x - xOffset))
                     {
-                        mousePositionVelocity = pos.y / blackNoteLength;
+                        mousePositionVelocity = jmax (0.0f, pos.y / blackNoteLength);
                         return note;
                     }
                 }
@@ -326,7 +337,7 @@ int MidiKeyboardComponent::remappedXYToNote (Point<float> pos, float& mousePosit
                 if (getKeyPos (note).contains (pos.x - xOffset))
                 {
                     auto whiteNoteLength = (orientation == horizontalKeyboard) ? getHeight() : getWidth();
-                    mousePositionVelocity = pos.y / (float) whiteNoteLength;
+                    mousePositionVelocity = jmax (0.0f, pos.y / (float) whiteNoteLength);
                     return note;
                 }
             }
@@ -610,7 +621,7 @@ void MidiKeyboardComponent::resized()
 
         if (canScroll)
         {
-            auto scrollButtonW = jmin (12, w / 2);
+            auto scrollButtonW = jmin (scrollButtonWidth, w / 2);
             auto r = getLocalBounds();
 
             if (orientation == horizontalKeyboard)
@@ -701,7 +712,7 @@ void MidiKeyboardComponent::updateNoteUnderMouse (Point<float> pos, bool isDown,
     auto newNote = xyToNote (pos, mousePositionVelocity);
     auto oldNote = mouseOverNotes.getUnchecked (fingerNum);
     auto oldNoteDown = mouseDownNotes.getUnchecked (fingerNum);
-    auto eventVelocity = useMousePositionForVelocity ? mousePositionVelocity * velocity : 1.0f;
+    auto eventVelocity = useMousePositionForVelocity ? mousePositionVelocity * velocity : velocity;
 
     if (oldNote != newNote)
     {

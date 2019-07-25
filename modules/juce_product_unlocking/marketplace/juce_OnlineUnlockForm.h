@@ -45,6 +45,8 @@ namespace juce
     if you need to get rid of it sooner.
 
     @see OnlineUnlockStatus
+
+    @tags{ProductUnlocking}
 */
 class JUCE_API  OnlineUnlockForm  : public Component,
                                     private Button::Listener
@@ -59,7 +61,7 @@ public:
                       bool overlayHasCancelButton = false);
 
     /** Destructor. */
-    ~OnlineUnlockForm();
+    ~OnlineUnlockForm() override;
 
     /** This is called when the form is dismissed (either cancelled or when registration
         succeeds).
@@ -80,7 +82,7 @@ public:
 
 private:
     OnlineUnlockStatus& status;
-    ScopedPointer<BubbleMessageComponent> bubble;
+    std::unique_ptr<BubbleMessageComponent> bubble;
 
     bool showOverlayCancelButton;
 

@@ -36,6 +36,8 @@ namespace juce
     implement all the pure virtual methods to tell it about your product.
 
     @see OnlineUnlockStatus, OnlineUnlockForm, KeyGeneration
+
+    @tags{ProductUnlocking}
 */
 class JUCE_API  TracktionMarketplaceStatus   : public OnlineUnlockStatus
 {
@@ -55,7 +57,7 @@ public:
 
 private:
     CriticalSection streamCreationLock;
-    ScopedPointer<WebInputStream> stream;
+    std::unique_ptr<WebInputStream> stream;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TracktionMarketplaceStatus)
 };

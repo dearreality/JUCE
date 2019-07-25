@@ -32,6 +32,8 @@ namespace juce
     A drawable object which is a bitmap image.
 
     @see Drawable
+
+    @tags{GUI}
 */
 class JUCE_API  DrawableImage  : public Drawable
 {
@@ -41,7 +43,7 @@ public:
     DrawableImage (const DrawableImage&);
 
     /** Destructor. */
-    ~DrawableImage();
+    ~DrawableImage() override;
 
     //==============================================================================
     /** Sets the image that this drawable will render. */

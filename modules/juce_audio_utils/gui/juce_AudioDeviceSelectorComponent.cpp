@@ -33,19 +33,18 @@ struct SimpleDeviceManagerInputLevelMeter  : public Component,
     SimpleDeviceManagerInputLevelMeter (AudioDeviceManager& m)  : manager (m)
     {
         startTimerHz (20);
-        manager.enableInputLevelMeasurement (true);
+        inputLevelGetter = manager.getInputLevelGetter();
     }
 
-    ~SimpleDeviceManagerInputLevelMeter()
+    ~SimpleDeviceManagerInputLevelMeter() override
     {
-        manager.enableInputLevelMeasurement (false);
     }
 
     void timerCallback() override
     {
         if (isShowing())
         {
-            auto newLevel = (float) manager.getCurrentInputLevel();
+            auto newLevel = (float) inputLevelGetter->getCurrentLevel();
 
             if (std::abs (level - newLevel) > 0.005f)
             {
@@ -61,11 +60,13 @@ struct SimpleDeviceManagerInputLevelMeter  : public Component,
 
     void paint (Graphics& g) override
     {
+        // (add a bit of a skew to make the level more obvious)
         getLookAndFeel().drawLevelMeter (g, getWidth(), getHeight(),
-                                         (float) std::exp (std::log (level) / 3.0)); // (add a bit of a skew to make the level more obvious)
+                                         (float) std::exp (std::log (level) / 3.0));
     }
 
     AudioDeviceManager& manager;
+    AudioDeviceManager::LevelMeter::Ptr inputLevelGetter;
     float level = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleDeviceManagerInputLevelMeter)
@@ -116,7 +117,7 @@ public:
 
             g.setFont (height * 0.6f);
             g.setColour (findColour (ListBox::textColourId, true).withMultipliedAlpha (enabled ? 1.0f : 0.6f));
-            g.drawText (item, x, 0, width - x - 2, height, Justification::centredLeft, true);
+            g.drawText (item, x + 5, 0, width - x - 5, height, Justification::centredLeft, true);
         }
     }
 
@@ -145,7 +146,7 @@ public:
         if (items.isEmpty())
         {
             g.setColour (Colours::grey);
-            g.setFont (13.0f);
+            g.setFont (0.5f * getRowHeight());
             g.drawText (noItemsMessage,
                         0, 0, getWidth(), getHeight() / 2,
                         Justification::centred, true);
@@ -178,7 +179,7 @@ private:
 
     int getTickX() const
     {
-        return getRowHeight() + 5;
+        return getRowHeight();
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiInputSelectorComponentListBox)
@@ -217,7 +218,7 @@ public:
         setup.manager->addChangeListener (this);
     }
 
-    ~AudioDeviceSettingsPanel()
+    ~AudioDeviceSettingsPanel() override
     {
         setup.manager->removeChangeListener (this);
     }
@@ -259,6 +260,7 @@ public:
 
             if (outputChanList != nullptr)
             {
+                outputChanList->setRowHeight (jmin (22, h));
                 outputChanList->setBounds (r.removeFromTop (outputChanList->getBestHeight (maxListBoxHeight)));
                 outputChanLabel->setBounds (0, outputChanList->getBounds().getCentreY() - h / 2, r.getX(), h);
                 r.removeFromTop (space);
@@ -266,6 +268,7 @@ public:
 
             if (inputChanList != nullptr)
             {
+                inputChanList->setRowHeight (jmin (22, h));
                 inputChanList->setBounds (r.removeFromTop (inputChanList->getBestHeight (maxListBoxHeight)));
                 inputChanLabel->setBounds (0, inputChanList->getBounds().getCentreY() - h / 2, r.getX(), h);
                 r.removeFromTop (space);
@@ -330,8 +333,7 @@ public:
 
     void updateConfig (bool updateOutputDevice, bool updateInputDevice, bool updateSampleRate, bool updateBufferSize)
     {
-        AudioDeviceManager::AudioDeviceSetup config;
-        setup.manager->getAudioDeviceSetup (config);
+        auto config = setup.manager->getAudioDeviceSetup();
         String error;
 
         if (updateOutputDevice || updateInputDevice)
@@ -515,11 +517,11 @@ private:
     AudioIODeviceType& type;
     const AudioDeviceSetupDetails setup;
 
-    ScopedPointer<ComboBox> outputDeviceDropDown, inputDeviceDropDown, sampleRateDropDown, bufferSizeDropDown;
-    ScopedPointer<Label> outputDeviceLabel, inputDeviceLabel, sampleRateLabel, bufferSizeLabel, inputChanLabel, outputChanLabel;
-    ScopedPointer<TextButton> testButton;
-    ScopedPointer<Component> inputLevelMeter;
-    ScopedPointer<TextButton> showUIButton, showAdvancedSettingsButton, resetDeviceButton;
+    std::unique_ptr<ComboBox> outputDeviceDropDown, inputDeviceDropDown, sampleRateDropDown, bufferSizeDropDown;
+    std::unique_ptr<Label> outputDeviceLabel, inputDeviceLabel, sampleRateLabel, bufferSizeLabel, inputChanLabel, outputChanLabel;
+    std::unique_ptr<TextButton> testButton;
+    std::unique_ptr<Component> inputLevelMeter;
+    std::unique_ptr<TextButton> showUIButton, showAdvancedSettingsButton, resetDeviceButton;
 
     void showCorrectDeviceName (ComboBox* box, bool isInput)
     {
@@ -769,9 +771,7 @@ public:
 
                 auto item = items[row];
                 bool enabled = false;
-
-                AudioDeviceManager::AudioDeviceSetup config;
-                setup.manager->getAudioDeviceSetup (config);
+                auto config = setup.manager->getAudioDeviceSetup();
 
                 if (setup.useStereoPairs)
                 {
@@ -825,7 +825,7 @@ public:
             if (items.isEmpty())
             {
                 g.setColour (Colours::grey);
-                g.setFont (13.0f);
+                g.setFont (0.5f * getRowHeight());
                 g.drawText (noItemsMessage,
                             0, 0, getWidth(), getHeight() / 2,
                             Justification::centred, true);
@@ -868,8 +868,7 @@ public:
 
             if (isPositiveAndBelow (row, items.size()))
             {
-                AudioDeviceManager::AudioDeviceSetup config;
-                setup.manager->getAudioDeviceSetup (config);
+                auto config = setup.manager->getAudioDeviceSetup();
 
                 if (setup.useStereoPairs)
                 {
@@ -908,12 +907,7 @@ public:
                     }
                 }
 
-                auto error = setup.manager->setAudioDeviceSetup (config, true);
-
-                if (error.isNotEmpty())
-                {
-                    //xxx
-                }
+                setup.manager->setAudioDeviceSetup (config, true);
             }
         }
 
@@ -947,7 +941,7 @@ public:
     };
 
 private:
-    ScopedPointer<ChannelSelectorListBox> inputChanList, outputChanList;
+    std::unique_ptr<ChannelSelectorListBox> inputChanList, outputChanList;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioDeviceSettingsPanel)
 };
@@ -1068,6 +1062,7 @@ void AudioDeviceSelectorComponent::resized()
 
     if (midiInputsList != nullptr)
     {
+        midiInputsList->setRowHeight (jmin (22, itemHeight));
         midiInputsList->setBounds (r.removeFromTop (midiInputsList->getBestHeight (jmin (itemHeight * 8,
                                                                                          getHeight() - r.getY() - space - itemHeight))));
         r.removeFromTop (space);

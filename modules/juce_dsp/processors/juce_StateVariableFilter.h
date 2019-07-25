@@ -30,21 +30,26 @@ namespace dsp
 {
 
 /**
-    An IIR filter that can perform low, band and high-pass filtering on an audio
-    signal, with 12 dB of attenuation / octave, using a TPT structure, designed
-    for fast modulation (see Vadim Zavalishin's documentation about TPT
-    structures for more information). Its behaviour is based on the analog
-    state variable filter circuit.
-
-    Note : the bandpass here is not the one in the RBJ CookBook, its gain can be
-    higher than 0 dB. For the classic 0 dB bandpass, we need to multiply the
-    result with R2
+    Classes for state variable filter processing.
 */
 namespace StateVariableFilter
 {
     template <typename NumericType>
     struct Parameters;
 
+    /**
+        An IIR filter that can perform low, band and high-pass filtering on an audio
+        signal, with 12 dB of attenuation / octave, using a TPT structure, designed
+        for fast modulation (see Vadim Zavalishin's documentation about TPT
+        structures for more information). Its behaviour is based on the analog
+        state variable filter circuit.
+
+        Note: The bandpass here is not the one in the RBJ CookBook, its gain can be
+        higher than 0 dB. For the classic 0 dB bandpass, we need to multiply the
+        result with R2
+
+        @tags{DSP}
+    */
     template <typename SampleType>
     class Filter
     {
@@ -55,11 +60,14 @@ namespace StateVariableFilter
         */
         using NumericType = typename SampleTypeHelpers::ElementType<SampleType>::Type;
 
+        /** A typedef for a ref-counted pointer to the coefficients object */
+        using ParametersPtr = typename Parameters<NumericType>::Ptr;
+
         //==============================================================================
         /** Creates a filter with default parameters. */
-        Filter()                            : parameters (new Parameters<NumericType>) { reset(); }
+        Filter()                               : parameters (new Parameters<NumericType>) { reset(); }
 
-        Filter (Parameters<NumericType>* paramtersToUse) : parameters (paramtersToUse) { reset(); }
+        Filter (ParametersPtr parametersToUse) : parameters (std::move (parametersToUse)) { reset(); }
 
         /** Creates a copy of another filter. */
         Filter (const Filter&) = default;
@@ -81,7 +89,7 @@ namespace StateVariableFilter
         void snapToZero() noexcept                     { util::snapToZero (s1); util::snapToZero (s2); }
 
         //==============================================================================
-        /** The parameters of the state variable filter. It's up to the called to ensure
+        /** The parameters of the state variable filter. It's up to the caller to ensure
             that these parameters are modified in a thread-safe way. */
         typename Parameters<NumericType>::Ptr parameters;
 
@@ -92,6 +100,58 @@ namespace StateVariableFilter
             static_assert (std::is_same<typename ProcessContext::SampleType, SampleType>::value,
                            "The sample-type of the filter must match the sample-type supplied to this process callback");
 
+            if (context.isBypassed)
+                processInternal<true, ProcessContext> (context);
+            else
+                processInternal<false, ProcessContext> (context);
+        }
+
+        /** Processes a single sample, without any locking or checking.
+            Use this if you need processing of a single value. */
+        SampleType JUCE_VECTOR_CALLTYPE processSample (SampleType sample) noexcept
+        {
+            switch (parameters->type)
+            {
+                case Parameters<NumericType>::Type::lowPass:  return processLoop<false, Parameters<NumericType>::Type::lowPass>  (sample, *parameters); break;
+                case Parameters<NumericType>::Type::bandPass: return processLoop<false, Parameters<NumericType>::Type::bandPass> (sample, *parameters); break;
+                case Parameters<NumericType>::Type::highPass: return processLoop<false, Parameters<NumericType>::Type::highPass> (sample, *parameters); break;
+                default: jassertfalse;
+            }
+
+            return SampleType{0};
+        }
+
+    private:
+        //==============================================================================
+        template <bool isBypassed, typename Parameters<NumericType>::Type type>
+        SampleType JUCE_VECTOR_CALLTYPE processLoop (SampleType sample, Parameters<NumericType>& state) noexcept
+        {
+            y[2] = (sample - s1 * state.R2 - s1 * state.g - s2) * state.h;
+
+            y[1] = y[2] * state.g + s1;
+            s1   = y[2] * state.g + y[1];
+
+            y[0] = y[1] * state.g + s2;
+            s2   = y[1] * state.g + y[0];
+
+            return isBypassed ? sample : y[static_cast<size_t> (type)];
+        }
+
+        template <bool isBypassed, typename Parameters<NumericType>::Type type>
+        void processBlock (const SampleType* input, SampleType* output, size_t n) noexcept
+        {
+            auto state = *parameters;
+
+            for (size_t i = 0 ; i < n; ++i)
+                output[i] = processLoop<isBypassed, type> (input[i], state);
+
+            snapToZero();
+            *parameters = state;
+        }
+
+        template <bool isBypassed, typename ProcessContext>
+        void processInternal (const ProcessContext& context) noexcept
+        {
             auto&& inputBlock  = context.getInputBlock();
             auto&& outputBlock = context.getOutputBlock();
 
@@ -106,54 +166,11 @@ namespace StateVariableFilter
 
             switch (parameters->type)
             {
-                case Parameters<NumericType>::Type::lowPass:  processBlock<Parameters<NumericType>::Type::lowPass>  (src, dst, n); break;
-                case Parameters<NumericType>::Type::bandPass: processBlock<Parameters<NumericType>::Type::bandPass> (src, dst, n); break;
-                case Parameters<NumericType>::Type::highPass: processBlock<Parameters<NumericType>::Type::highPass> (src, dst, n); break;
+                case Parameters<NumericType>::Type::lowPass:  processBlock<isBypassed, Parameters<NumericType>::Type::lowPass>  (src, dst, n); break;
+                case Parameters<NumericType>::Type::bandPass: processBlock<isBypassed, Parameters<NumericType>::Type::bandPass> (src, dst, n); break;
+                case Parameters<NumericType>::Type::highPass: processBlock<isBypassed, Parameters<NumericType>::Type::highPass> (src, dst, n); break;
                 default: jassertfalse;
             }
-        }
-
-        /** Processes a single sample, without any locking or checking.
-            Use this if you need processing of a single value. */
-        SampleType JUCE_VECTOR_CALLTYPE processSample (SampleType sample) noexcept
-        {
-            switch (parameters->type)
-            {
-                case Parameters<NumericType>::Type::lowPass:  return processLoop<Parameters<NumericType>::Type::lowPass>  (sample, *parameters); break;
-                case Parameters<NumericType>::Type::bandPass: return processLoop<Parameters<NumericType>::Type::bandPass> (sample, *parameters); break;
-                case Parameters<NumericType>::Type::highPass: return processLoop<Parameters<NumericType>::Type::highPass> (sample, *parameters); break;
-                default: jassertfalse;
-            }
-
-            return SampleType{0};
-        }
-
-    private:
-        //==============================================================================
-        template <typename Parameters<NumericType>::Type type>
-        SampleType JUCE_VECTOR_CALLTYPE processLoop (SampleType sample, Parameters<NumericType>& state) noexcept
-        {
-            y[2] = (sample - s1 * state.R2 - s1 * state.g - s2) * state.h;
-
-            y[1] = y[2] * state.g + s1;
-            s1   = y[2] * state.g + y[1];
-
-            y[0] = y[1] * state.g + s2;
-            s2   = y[1] * state.g + y[0];
-
-            return y[static_cast<size_t> (type)];
-        }
-
-        template <typename Parameters<NumericType>::Type type>
-        void processBlock (const SampleType* input, SampleType* output, size_t n) noexcept
-        {
-            auto state = *parameters;
-
-            for (size_t i = 0 ; i < n; ++i)
-                output[i] = processLoop<type> (input[i], state);
-
-            snapToZero();
-            *parameters = state;
         }
 
         //==============================================================================
@@ -165,6 +182,11 @@ namespace StateVariableFilter
     };
 
     //==============================================================================
+    /**
+        Structure used for the state variable filter parameters.
+
+        @tags{DSP}
+    */
     template <typename NumericType>
     struct Parameters  : public ProcessorState
     {
@@ -181,7 +203,8 @@ namespace StateVariableFilter
         Type type = Type::lowPass;
 
         /** Sets the cutoff frequency and resonance of the IIR filter.
-            Note : the bandwidth of the resonance increases with the value of the
+
+            Note: The bandwidth of the resonance increases with the value of the
             parameter. To have a standard 12 dB/octave filter, the value must be set
             at 1 / sqrt(2).
         */

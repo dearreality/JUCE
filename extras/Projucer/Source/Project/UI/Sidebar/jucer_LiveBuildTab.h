@@ -35,7 +35,7 @@ struct LiveBuildSettingsComponent  : public Component
         addAndMakeVisible (&group);
 
         PropertyListBuilder props;
-        LiveBuildProjectSettings::getLiveSettings (p, props);
+        p.getCompileEngineSettings().getLiveSettings (props);
 
         group.setProperties (props);
         group.setName ("Live Build Settings");
@@ -67,9 +67,10 @@ class LiveBuildTab    : public Component,
                         private ChangeListener
 {
 public:
-    LiveBuildTab (CompileEngineChildProcess* child, String lastErrorMessage)
+    LiveBuildTab (const CompileEngineChildProcess::Ptr& child, String lastErrorMessage)
     {
-        addAndMakeVisible (settingsButton = new IconButton ("Settings", &getIcons().settings));
+        settingsButton.reset (new IconButton ("Settings", &getIcons().settings));
+        addAndMakeVisible (settingsButton.get());
         settingsButton->onClick = [this]
         {
             if (auto* pcc = findParentComponentOfClass<ProjectContentComponent>())
@@ -79,24 +80,23 @@ public:
         if (child != nullptr)
         {
             addAndMakeVisible (concertinaPanel);
-            buildConcertina (child);
+            buildConcertina (*child);
             isEnabled = true;
         }
         else
         {
-            isEnabled = false;
-
             errorMessage = getErrorMessage();
-            errorMessageLabel = new Label ("Error", errorMessage);
+            errorMessageLabel.reset (new Label ("Error", errorMessage));
             errorMessageLabel->setJustificationType (Justification::centred);
             errorMessageLabel->setFont (Font (12.0f));
             errorMessageLabel->setMinimumHorizontalScale (1.0f);
 
-            addAndMakeVisible (errorMessageLabel);
+            addAndMakeVisible (errorMessageLabel.get());
 
             if (showDownloadButton)
             {
-                addAndMakeVisible (downloadButton = new TextButton ("Download"));
+                downloadButton.reset (new TextButton ("Download"));
+                addAndMakeVisible (downloadButton.get());
                 downloadButton->onClick = [this] { downloadDLL(); };
             }
 
@@ -110,7 +110,8 @@ public:
                     buttonText = "Re-enable";
                 }
 
-                addAndMakeVisible (enableButton = new TextButton (buttonText));
+                enableButton.reset (new TextButton (buttonText));
+                addAndMakeVisible (enableButton.get());
                 enableButton->onClick = [this]
                 {
                     if (auto* pcc = findParentComponentOfClass<ProjectContentComponent>())
@@ -155,17 +156,17 @@ public:
         }
     }
 
-    bool isEnabled;
+    bool isEnabled = false;
     String errorMessage;
     Component::SafePointer<ProjucerAppClasses::ErrorListComp> errorListComp;
 
 private:
     OwnedArray<ConcertinaHeader> headers;
     ConcertinaPanel concertinaPanel;
-    ScopedPointer<IconButton> settingsButton;
+    std::unique_ptr<IconButton> settingsButton;
 
-    ScopedPointer<TextButton> downloadButton, enableButton;
-    ScopedPointer<Label> errorMessageLabel;
+    std::unique_ptr<TextButton> downloadButton, enableButton;
+    std::unique_ptr<Label> errorMessageLabel;
     bool showDownloadButton;
     bool showEnableButton;
 
@@ -229,16 +230,16 @@ private:
         }
     }
 
-    void buildConcertina (CompileEngineChildProcess* child)
+    void buildConcertina (CompileEngineChildProcess& child)
     {
         for (auto i = concertinaPanel.getNumPanels() - 1; i >= 0 ; --i)
             concertinaPanel.removePanel (concertinaPanel.getPanel (i));
 
         headers.clear();
 
-        errorListComp = new ProjucerAppClasses::ErrorListComp (child->errorList);
-        auto* activities = new CurrentActivitiesComp (child->activityList);
-        auto* comps = new ComponentListComp (*child);
+        errorListComp = new ProjucerAppClasses::ErrorListComp (child.errorList);
+        auto* activities = new CurrentActivitiesComp (child.activityList);
+        auto* comps = new ComponentListComp (child);
 
         concertinaPanel.addPanel (-1, errorListComp, true);
         concertinaPanel.addPanel (-1, comps, true);

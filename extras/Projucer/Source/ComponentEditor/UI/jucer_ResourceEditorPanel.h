@@ -35,7 +35,7 @@ class ResourceEditorPanel  : public Component,
 {
 public:
     ResourceEditorPanel (JucerDocument& document);
-    ~ResourceEditorPanel();
+    ~ResourceEditorPanel() override;
 
     void resized() override;
     void paint (Graphics& g) override;
@@ -55,6 +55,6 @@ private:
     void reloadAll();
 
     JucerDocument& document;
-    ScopedPointer<TableListBox> listBox;
+    std::unique_ptr<TableListBox> listBox;
     TextButton addButton, reloadAllButton, delButton;
 };

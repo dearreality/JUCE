@@ -33,6 +33,8 @@ namespace juce
     when a button is clicked.
 
     @see Analytics, AnalyticsDestination::AnalyticsEvent
+
+    @tags{Analytics}
 */
 class JUCE_API  ButtonTracker   : private Button::Listener
 {
@@ -61,7 +63,7 @@ public:
                    int triggeredEventType = 0);
 
     /** Destructor. */
-    ~ButtonTracker();
+    ~ButtonTracker() override;
 
 private:
     /** @internal */

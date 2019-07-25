@@ -8,25 +8,25 @@
   ==============================================================================
 */
 
-APPHEADERS
+%%app_headers%%
 
 //==============================================================================
-class APPCLASSNAME  : public JUCEApplication
+class %%app_class_name%%  : public JUCEApplication
 {
 public:
     //==============================================================================
-    APPCLASSNAME() {}
+    %%app_class_name%%() {}
 
     const String getApplicationName() override       { return ProjectInfo::projectName; }
     const String getApplicationVersion() override    { return ProjectInfo::versionString; }
-    bool moreThanOneInstanceAllowed() override       { return ALLOWMORETHANONEINSTANCE; }
+    bool moreThanOneInstanceAllowed() override       { return %%allow_more_than_one_instance%%; }
 
     //==============================================================================
     void initialise (const String& commandLine) override
     {
         // This method is where you should put your application's initialisation code..
 
-        mainWindow = new MainWindow (getApplicationName());
+        mainWindow.reset (new MainWindow (getApplicationName()));
     }
 
     void shutdown() override
@@ -54,7 +54,7 @@ public:
     //==============================================================================
     /*
         This class implements the desktop window that contains an instance of
-        our CONTENTCOMPCLASS class.
+        our %%content_component_class%% class.
     */
     class MainWindow    : public DocumentWindow
     {
@@ -65,10 +65,15 @@ public:
                                                     DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new CONTENTCOMPCLASS(), true);
-            setResizable (true, true);
+            setContentOwned (new %%content_component_class%%(), true);
 
+           #if JUCE_IOS || JUCE_ANDROID
+            setFullScreen (true);
+           #else
+            setResizable (true, true);
             centreWithSize (getWidth(), getHeight());
+           #endif
+
             setVisible (true);
         }
 
@@ -92,9 +97,9 @@ public:
     };
 
 private:
-    ScopedPointer<MainWindow> mainWindow;
+    std::unique_ptr<MainWindow> mainWindow;
 };
 
 //==============================================================================
 // This macro generates the main() routine that launches the app.
-START_JUCE_APPLICATION (APPCLASSNAME)
+START_JUCE_APPLICATION (%%app_class_name%%)

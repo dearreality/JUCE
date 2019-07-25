@@ -67,6 +67,7 @@ public:
             AudioUnitPlugIn   = 14,
             AudioUnitv3PlugIn = 15,
             StandalonePlugIn  = 16,
+            UnityPlugIn       = 17,
 
             SharedCodeTarget  = 20, // internal
             AggregateTarget   = 21,
@@ -186,6 +187,7 @@ struct ProjectType_AudioPlugin  : public ProjectType
             case Target::AudioUnitPlugIn:
             case Target::AudioUnitv3PlugIn:
             case Target::StandalonePlugIn:
+            case Target::UnityPlugIn:
             case Target::SharedCodeTarget:
             case Target::AggregateTarget:
                 return true;
@@ -206,5 +208,5 @@ inline Array<ProjectType*> ProjectType::getAllTypes()
     static ProjectType_DLL dll;
     static ProjectType_AudioPlugin plugin;
 
-    return { &guiApp, &consoleApp, &staticLib, &dll, &plugin };
+    return Array<ProjectType*>(&guiApp, &consoleApp, &staticLib, &dll, &plugin);
 }

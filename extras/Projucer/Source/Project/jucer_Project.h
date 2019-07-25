@@ -31,6 +31,9 @@
 class ProjectExporter;
 class LibraryModule;
 class EnabledModuleList;
+class AvailableModuleList;
+class ProjectContentComponent;
+class CompileEngineSettings;
 
 //==============================================================================
 class Project  : public FileBasedDocument,
@@ -39,7 +42,7 @@ class Project  : public FileBasedDocument,
 public:
     //==============================================================================
     Project (const File&);
-    ~Project();
+    ~Project() override;
 
     //==============================================================================
     // FileBasedDocument stuff..
@@ -95,14 +98,17 @@ public:
     String getProjectFilenameRootString()                { return File::createLegalFileName (getDocumentTitle()); }
     String getProjectUIDString() const                   { return projectUIDValue.get(); }
 
+    String getProjectLineFeed() const                    { return projectLineFeedValue.get(); }
+
     String getVersionString() const                      { return versionValue.get(); }
     String getVersionAsHex() const;
     int getVersionAsHexInteger() const;
     void setProjectVersion (const String& newVersion)    { versionValue = newVersion; }
 
     String getBundleIdentifierString() const             { return bundleIdentifierValue.get(); }
-    String getDefaultBundleIdentifierString()            { return "com.yourcompany." + CodeHelpers::makeValidIdentifier (getProjectNameString(), false, true, false); }
-    String getDefaultAAXIdentifierString()               { return getDefaultBundleIdentifierString(); }
+    String getDefaultBundleIdentifierString() const;
+    String getDefaultAAXIdentifierString() const         { return getDefaultBundleIdentifierString(); }
+    String getDefaultPluginManufacturerString() const;
 
     String getCompanyNameString() const                  { return companyNameValue.get(); }
     String getCompanyCopyrightString() const             { return companyCopyrightValue.get(); }
@@ -114,7 +120,7 @@ public:
     StringPairArray getPreprocessorDefs() const          { return parsedPreprocessorDefs; }
 
     int getMaxBinaryFileSize() const                     { return maxBinaryFileSizeValue.get(); }
-    bool shouldIncludeBinaryInAppConfig() const          { return includeBinaryDataInAppConfigValue.get(); }
+    bool shouldIncludeBinaryInJuceHeader() const         { return includeBinaryDataInJuceHeaderValue.get(); }
     String getBinaryDataNamespaceString() const          { return binaryDataNamespaceValue.get(); }
 
     bool shouldDisplaySplashScreen() const               { return displaySplashScreenValue.get(); }
@@ -123,15 +129,9 @@ public:
 
     String getCppStandardString() const                  { return cppStandardValue.get(); }
 
-    //==============================================================================
-    bool shouldBuildVST() const                 { return buildVSTValue.get(); }
-    bool shouldBuildVST3() const                { return buildVST3Value.get(); }
-    bool shouldBuildAU() const                  { return buildAUValue.get(); }
-    bool shouldBuildAUv3() const                { return buildAUv3Value.get(); }
-    bool shouldBuildRTAS() const                { return buildRTASValue.get(); }
-    bool shouldBuildAAX() const                 { return buildAAXValue.get(); }
-    bool shouldBuildStandalonePlugin() const    { return buildStandaloneValue.get(); }
-    bool shouldEnableIAA() const                { return enableIAAValue.get(); }
+    StringArray getCompilerFlagSchemes() const;
+    void addCompilerFlagScheme (const String&);
+    void removeCompilerFlagScheme (const String&);
 
     //==============================================================================
     String getPluginNameString() const                { return pluginNameValue.get(); }
@@ -140,29 +140,86 @@ public:
     String getPluginManufacturerCodeString() const    { return pluginManufacturerCodeValue.get(); }
     String getPluginCodeString() const                { return pluginCodeValue.get(); }
     String getPluginChannelConfigsString() const      { return pluginChannelConfigsValue.get(); }
-    String getPluginAUExportPrefixString() const      { return pluginAUExportPrefixValue.get(); }
-    String getPluginAUMainTypeString() const          { return pluginAUMainTypeValue.get(); }
-    String getPluginRTASCategoryString() const        { return pluginRTASCategoryValue.get(); }
     String getAAXIdentifierString() const             { return pluginAAXIdentifierValue.get(); }
-    String getPluginAAXCategoryString() const         { return pluginAAXCategoryValue.get(); }
+    String getPluginAUExportPrefixString() const      { return pluginAUExportPrefixValue.get(); }
+    String getVSTNumMIDIInputsString() const          { return pluginVSTNumMidiInputsValue.get(); }
+    String getVSTNumMIDIOutputsString() const         { return pluginVSTNumMidiOutputsValue.get(); }
 
-    bool isPluginSynth() const                        { return pluginIsSynthValue.get(); }
-    bool pluginWantsMidiInput() const                 { return pluginWantsMidiInputValue.get(); }
-    bool pluginProducesMidiOutput() const             { return pluginProducesMidiOutValue.get(); }
-    bool isPluginMidiEffect() const                   { return pluginIsMidiEffectPluginValue.get(); }
-    bool pluginEditorNeedsKeyFocus() const            { return pluginEditorNeedsKeyFocusValue.get(); }
-    bool isPluginRTASBypassDisabled() const           { return pluginRTASBypassDisabledValue.get(); }
-    bool isPluginRTASMultiMonoDisabled() const        { return pluginRTASMultiMonoDisabledValue.get(); }
-    bool isPluginAAXBypassDisabled() const            { return pluginAAXBypassDisabledValue.get(); }
-    bool isPluginAAXMultiMonoDisabled() const         { return pluginAAXMultiMonoDisabledValue.get(); }
+    //==============================================================================
+    static bool checkMultiChoiceVar (const ValueWithDefault& valueToCheck, Identifier idToCheck) noexcept
+    {
+        if (! valueToCheck.get().isArray())
+            return false;
 
-    String getPluginRTASCategoryCode();
-    String getAUMainTypeString();
-    String getAUMainTypeCode();
+        auto v = valueToCheck.get();
+
+        if (auto* varArray = v.getArray())
+            return varArray->contains (idToCheck.toString());
+
+        return false;
+    }
+
+    //==============================================================================
+    bool shouldBuildVST() const                       { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildVST); }
+    bool shouldBuildVST3() const                      { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildVST3); }
+    bool shouldBuildAU() const                        { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildAU); }
+    bool shouldBuildAUv3() const                      { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildAUv3); }
+    bool shouldBuildRTAS() const                      { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildRTAS); }
+    bool shouldBuildAAX() const                       { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildAAX); }
+    bool shouldBuildStandalonePlugin() const          { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildStandalone); }
+    bool shouldBuildUnityPlugin() const               { return checkMultiChoiceVar (pluginFormatsValue, Ids::buildUnity); }
+    bool shouldEnableIAA() const                      { return checkMultiChoiceVar (pluginFormatsValue, Ids::enableIAA); }
+
+    //==============================================================================
+    bool isPluginSynth() const                        { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginIsSynth); }
+    bool pluginWantsMidiInput() const                 { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginWantsMidiIn); }
+    bool pluginProducesMidiOutput() const             { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginProducesMidiOut); }
+    bool isPluginMidiEffect() const                   { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginIsMidiEffectPlugin); }
+    bool pluginEditorNeedsKeyFocus() const            { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginEditorRequiresKeys); }
+    bool isPluginRTASBypassDisabled() const           { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginRTASDisableBypass); }
+    bool isPluginRTASMultiMonoDisabled() const        { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginRTASDisableMultiMono); }
+    bool isPluginAAXBypassDisabled() const            { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginAAXDisableBypass); }
+    bool isPluginAAXMultiMonoDisabled() const         { return checkMultiChoiceVar (pluginCharacteristicsValue, Ids::pluginAAXDisableMultiMono); }
+
+    //==============================================================================
+    static StringArray getAllAUMainTypeStrings() noexcept;
+    static Array<var> getAllAUMainTypeVars() noexcept;
+    Array<var> getDefaultAUMainTypes() const noexcept;
+
+    static StringArray getAllVSTCategoryStrings() noexcept;
+    Array<var> getDefaultVSTCategories() const noexcept;
+
+    static StringArray getAllVST3CategoryStrings() noexcept;
+    Array<var> getDefaultVST3Categories() const noexcept;
+
+    static StringArray getAllAAXCategoryStrings() noexcept;
+    static Array<var> getAllAAXCategoryVars() noexcept;
+    Array<var> getDefaultAAXCategories() const noexcept;
+
+    static StringArray getAllRTASCategoryStrings() noexcept;
+    static Array<var> getAllRTASCategoryVars() noexcept;
+    Array<var> getDefaultRTASCategories() const noexcept;
+
+    String getAUMainTypeString() const noexcept;
+    bool isAUSandBoxSafe() const noexcept;
+    String getVSTCategoryString() const noexcept;
+    String getVST3CategoryString() const noexcept;
+    int getAAXCategory() const noexcept;
+    int getRTASCategory() const noexcept;
+
     String getIAATypeCode();
     String getIAAPluginName();
-    String getPluginVSTCategoryString();
 
+    String getUnityScriptName() const    { return addUnityPluginPrefixIfNecessary (getProjectNameString()) + "_UnityScript.cs"; }
+    static String addUnityPluginPrefixIfNecessary (const String& name)
+    {
+        if (! name.startsWithIgnoreCase ("audioplugin"))
+            return "audioplugin_" + name;
+
+        return name;
+    }
+
+    //==============================================================================
     bool isAUPluginHost();
     bool isVSTPluginHost();
     bool isVST3PluginHost();
@@ -228,6 +285,12 @@ public:
 
         bool isModuleCode() const;
 
+        Value getCompilerFlagSchemeValue();
+        String getCompilerFlagSchemeString() const;
+
+        void setCompilerFlagScheme (const String&);
+        void clearCurrentCompilerFlagScheme();
+
         //==============================================================================
         bool canContain (const Item& child) const;
         int getNumChildren() const                      { return state.getNumChildren(); }
@@ -252,6 +315,8 @@ public:
 
         Icon getIcon (bool isOpen = false) const;
         bool isIconCrossedOut() const;
+
+        bool needsSaving() const noexcept;
 
         Project& project;
         ValueTree state;
@@ -282,7 +347,7 @@ public:
         ProjectExporter& operator*() const       { return *exporter; }
         ProjectExporter* operator->() const      { return exporter.get(); }
 
-        ScopedPointer<ProjectExporter> exporter;
+        std::unique_ptr<ProjectExporter> exporter;
         int index;
 
     private:
@@ -301,7 +366,12 @@ public:
     bool isConfigFlagEnabled (const String& name, bool defaultIsEnabled = false) const;
 
     //==============================================================================
-    EnabledModuleList& getModules();
+    EnabledModuleList& getEnabledModules();
+
+    AvailableModuleList& getExporterPathsModuleList();
+    void rescanExporterPathModules (bool async = false);
+
+    std::pair<String, File> getModuleWithID (const String&);
 
     //==============================================================================
     String getFileTemplate (const String& templateName);
@@ -331,27 +401,69 @@ public:
     String getUniqueTargetFolderSuffixForExporter (const String& exporterName, const String& baseTargetFolder);
 
     //==============================================================================
-    bool isCurrentlySaving() const noexcept     { return isSaving; }
+    bool isCurrentlySaving() const noexcept        { return isSaving; }
     bool shouldWaitAfterSaving = false;
     String specifiedExporterToSave = {};
+
+    //==============================================================================
+    bool isTemporaryProject() const noexcept             { return tempDirectory != File(); }
+    File getTemporaryDirectory() const noexcept          { return tempDirectory; }
+    void setTemporaryDirectory (const File&) noexcept;
+
+    void setOpenInIDEAfterSaving (bool open) noexcept    { openInIDEAfterSaving = open; }
+    bool shouldOpenInIDEAfterSaving() const noexcept     { return openInIDEAfterSaving; }
+
+    //==============================================================================
+    bool shouldSendGUIBuilderAnalyticsEvent() noexcept;
+
+    //==============================================================================
+    CompileEngineSettings& getCompileEngineSettings()    { return *compileEngineSettings; }
 
 private:
     ValueTree projectRoot  { Ids::JUCERPROJECT };
 
-    ValueWithDefault projectNameValue, projectUIDValue, projectTypeValue, versionValue, bundleIdentifierValue, companyNameValue, companyCopyrightValue,
-                     companyWebsiteValue, companyEmailValue, displaySplashScreenValue, reportAppUsageValue, splashScreenColourValue, cppStandardValue,
-                     headerSearchPathsValue, preprocessorDefsValue, userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInAppConfigValue, binaryDataNamespaceValue;
+    ValueWithDefault projectNameValue, projectUIDValue, projectLineFeedValue, projectTypeValue, versionValue, bundleIdentifierValue, companyNameValue,
+                     companyCopyrightValue, companyWebsiteValue, companyEmailValue, displaySplashScreenValue, reportAppUsageValue, splashScreenColourValue, cppStandardValue,
+                     headerSearchPathsValue, preprocessorDefsValue, userNotesValue, maxBinaryFileSizeValue, includeBinaryDataInJuceHeaderValue, binaryDataNamespaceValue,
+                     compilerFlagSchemesValue;
 
-    ValueWithDefault buildVSTValue, buildVST3Value, buildAUValue, buildAUv3Value, buildRTASValue, buildAAXValue, buildStandaloneValue,
-                     enableIAAValue, pluginNameValue, pluginDescriptionValue, pluginManufacturerValue, pluginManufacturerCodeValue,
-                     pluginCodeValue, pluginChannelConfigsValue, pluginIsSynthValue, pluginWantsMidiInputValue, pluginProducesMidiOutValue,
-                     pluginIsMidiEffectPluginValue, pluginEditorNeedsKeyFocusValue, pluginVSTCategoryValue, pluginAUExportPrefixValue,
-                     pluginAUMainTypeValue, pluginRTASCategoryValue, pluginRTASBypassDisabledValue, pluginRTASMultiMonoDisabledValue,
-                     pluginAAXIdentifierValue, pluginAAXCategoryValue, pluginAAXBypassDisabledValue, pluginAAXMultiMonoDisabledValue;
+    ValueWithDefault pluginFormatsValue, pluginNameValue, pluginDescriptionValue, pluginManufacturerValue, pluginManufacturerCodeValue,
+                     pluginCodeValue, pluginChannelConfigsValue, pluginCharacteristicsValue, pluginAUExportPrefixValue, pluginAAXIdentifierValue,
+                     pluginAUMainTypeValue, pluginAUSandboxSafeValue, pluginRTASCategoryValue, pluginVSTCategoryValue, pluginVST3CategoryValue, pluginAAXCategoryValue,
+                     pluginVSTNumMidiInputsValue, pluginVSTNumMidiOutputsValue;
+
+    //==============================================================================
+    std::unique_ptr<CompileEngineSettings> compileEngineSettings;
+    std::unique_ptr<EnabledModuleList> enabledModuleList;
+    std::unique_ptr<AvailableModuleList> exporterPathsModuleList;
+
+    //==============================================================================
+    bool shouldWriteLegacyPluginFormatSettings = false;
+    bool shouldWriteLegacyPluginCharacteristicsSettings = false;
+
+    static Array<Identifier> getLegacyPluginFormatIdentifiers() noexcept;
+    static Array<Identifier> getLegacyPluginCharacteristicsIdentifiers() noexcept;
+
+    void writeLegacyPluginFormatSettings();
+    void writeLegacyPluginCharacteristicsSettings();
+
+    void coalescePluginFormatValues();
+    void coalescePluginCharacteristicsValues();
+    void updatePluginCategories();
+
+    //==============================================================================
+    File tempDirectory = {};
+    bool openInIDEAfterSaving = false;
+
+    void askUserWhereToSaveProject();
+    void moveTemporaryDirectory (const File&);
+    bool saveProjectRootToFile();
+
+    //==============================================================================
+    bool hasSentGUIBuilderAnalyticsEvent = false;
 
     //==============================================================================
     friend class Item;
-    ScopedPointer<EnabledModuleList> enabledModulesList;
     bool isSaving = false;
     Time modificationTime;
     StringPairArray parsedPreprocessorDefs;
@@ -366,6 +478,8 @@ private:
     void createAudioPluginPropertyEditors (PropertyListBuilder& props);
 
     //==============================================================================
+    void updateTitleDependencies();
+    void updateCompanyNameDependencies();
     void updateProjectSettings();
     ValueTree getConfigurations() const;
     ValueTree getConfigNode();

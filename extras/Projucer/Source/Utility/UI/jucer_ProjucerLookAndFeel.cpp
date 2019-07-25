@@ -41,8 +41,6 @@ void ProjucerLookAndFeel::drawTabButton (TabBarButton& button, Graphics& g, bool
     const auto area = button.getActiveArea();
     auto backgroundColour = findColour (button.isFrontTab() ? secondaryBackgroundColourId
                                                             : inactiveTabBackgroundColourId);
-    auto iconColour = findColour (button.isFrontTab() ? activeTabIconColourId
-                                                      : inactiveTabIconColourId);
 
     g.setColour (backgroundColour);
     g.fillRect (area);
@@ -50,6 +48,9 @@ void ProjucerLookAndFeel::drawTabButton (TabBarButton& button, Graphics& g, bool
     const auto alpha = button.isEnabled() ? ((isMouseOver || isMouseDown) ? 1.0f : 0.8f) : 0.3f;
 
    #ifndef BUILDING_JUCE_COMPILEENGINE
+    auto iconColour = findColour (button.isFrontTab() ? activeTabIconColourId
+                                                      : inactiveTabIconColourId);
+
     if (button.getName() == "Project")
     {
         auto icon = Icon (getIcons().closedFolder, iconColour.withMultipliedAlpha (alpha));
@@ -108,8 +109,7 @@ void ProjucerLookAndFeel::drawButtonBackground (Graphics& g,
     const auto cornerSize = button.findParentComponentOfClass<PropertyComponent>() != nullptr ? 0.0f : 3.0f;
     const auto bounds = button.getLocalBounds().toFloat();
 
-    auto baseColour = backgroundColour.withMultipliedSaturation (button.hasKeyboardFocus (true) ? 1.3f : 0.9f)
-                                      .withMultipliedAlpha (button.isEnabled() ? 1.0f : 0.5f);
+    auto baseColour = backgroundColour.withMultipliedAlpha (button.isEnabled() ? 1.0f : 0.5f);
 
     if (isButtonDown || isMouseOverButton)
         baseColour = baseColour.contrasting (isButtonDown ? 0.2f : 0.05f);
@@ -162,7 +162,8 @@ void ProjucerLookAndFeel::drawToggleButton (Graphics& g, ToggleButton& button, b
         g.setOpacity (0.5f);
 
     bool isTextEmpty = button.getButtonText().isEmpty();
-    bool isPropertyComponentChild = (dynamic_cast<BooleanPropertyComponent*> (button.getParentComponent()) != nullptr);
+    bool isPropertyComponentChild = (dynamic_cast<BooleanPropertyComponent*> (button.getParentComponent()) != nullptr
+                                     || dynamic_cast<MultiChoicePropertyComponent*> (button.getParentComponent()) != nullptr);
 
     auto bounds = button.getLocalBounds();
 
@@ -195,11 +196,6 @@ void ProjucerLookAndFeel::drawToggleButton (Graphics& g, ToggleButton& button, b
 
         g.drawFittedText (button.getButtonText(), bounds, Justification::centredLeft, 2);
     }
-}
-
-Font ProjucerLookAndFeel::getTextButtonFont (TextButton&, int buttonHeight)
-{
-    return Font (jmin (12.0f, buttonHeight * 0.6f));
 }
 
 void ProjucerLookAndFeel::fillTextEditorBackground (Graphics& g, int width, int height, TextEditor& textEditor)

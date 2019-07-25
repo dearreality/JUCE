@@ -68,7 +68,8 @@ public:
                 refresh(); // (to clear the text editor if it's got focus)
         };
 
-        addAndMakeVisible (textEditor = new PositionPropLabel (*this));
+        textEditor.reset (new PositionPropLabel (*this));
+        addAndMakeVisible (textEditor.get());
     }
 
     String getText() const
@@ -342,9 +343,9 @@ public:
 
         Rectangle<int> parentArea;
 
-        if (component->findParentComponentOfClass<ComponentLayoutEditor>() != 0)
+        if (component->findParentComponentOfClass<ComponentLayoutEditor>() != nullptr)
             parentArea.setSize (component->getParentWidth(), component->getParentHeight());
-        else if (PaintRoutineEditor* pre = dynamic_cast<PaintRoutineEditor*> (component->getParentComponent()))
+        else if (auto pre = dynamic_cast<PaintRoutineEditor*> (component->getParentComponent()))
             parentArea = pre->getComponentArea();
         else
             jassertfalse;
@@ -440,7 +441,7 @@ protected:
     };
 
     ComponentLayout* layout;
-    ScopedPointer<PositionPropLabel> textEditor;
+    std::unique_ptr<PositionPropLabel> textEditor;
     TextButton button;
 
     Component* component;

@@ -44,6 +44,8 @@ namespace juce
     keyboard is scrolled, you can register a ChangeListener for callbacks.
 
     @see MidiKeyboardState
+
+    @tags{Audio}
 */
 class JUCE_API  MidiKeyboardComponent  : public Component,
                                          public MidiKeyboardStateListener,
@@ -71,7 +73,7 @@ public:
                            Orientation orientation);
 
     /** Destructor. */
-    ~MidiKeyboardComponent();
+    ~MidiKeyboardComponent() override;
 
     //==============================================================================
     /** Changes the velocity used in midi note-on messages that are triggered by clicking
@@ -126,6 +128,12 @@ public:
 
     /** Returns the width that was set by setKeyWidth(). */
     float getKeyWidth() const noexcept                              { return keyWidth; }
+
+    /** Changes the width used to draw the buttons that scroll the keyboard up/down in octaves. */
+    void setScrollButtonWidth (int widthInPixels);
+
+    /** Returns the width that was set by setScrollButtonWidth(). */
+    int getScrollButtonWidth() const noexcept                       { return scrollButtonWidth; }
 
     /** Changes the keyboard's current direction. */
     void setOrientation (Orientation newOrientation);
@@ -394,6 +402,7 @@ private:
     float blackNoteWidthRatio = 0.7f;
     float xOffset = 0;
     float keyWidth = 16.0f;
+    int scrollButtonWidth = 12;
     Orientation orientation;
 
     int midiChannel = 1, midiInChannelMask = 0xffff;
@@ -406,7 +415,7 @@ private:
     int rangeStart = 0, rangeEnd = 127;
     float firstKey = 12 * 4.0f;
     bool canScroll = true, useMousePositionForVelocity = true, shouldCheckMousePos = false;
-    ScopedPointer<Button> scrollDown, scrollUp;
+    std::unique_ptr<Button> scrollDown, scrollUp;
 
     Array<KeyPress> keyPresses;
     Array<int> keyPressNotes;

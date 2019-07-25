@@ -30,7 +30,7 @@ namespace juce
 class AndroidViewComponent::Pimpl  : public ComponentMovementWatcher
 {
 public:
-    Pimpl (jobject v, Component& comp)
+    Pimpl (const LocalRef<jobject>& v, Component& comp)
         : ComponentMovementWatcher (&comp),
           view (v),
           owner (comp)
@@ -67,7 +67,6 @@ public:
         if (currentPeer != peer)
         {
             removeFromParent();
-
             currentPeer = peer;
 
             addToParent();
@@ -85,6 +84,11 @@ public:
     void componentVisibilityChanged() override
     {
         componentPeerChanged();
+    }
+
+    void componentBroughtToFront (Component& comp) override
+    {
+        ComponentMovementWatcher::componentBroughtToFront (comp);
     }
 
     Rectangle<int> getViewBounds() const
@@ -106,12 +110,10 @@ private:
         {
             jobject peerView = (jobject) currentPeer->getNativeHandle();
 
+            // NB: Assuming a parent is always of ViewGroup type
             auto* env = getEnv();
-            auto parentView = env->CallObjectMethod (peerView, AndroidView.getParent);
 
-            // Assuming a parent is always of ViewGroup type
-            env->CallVoidMethod (parentView, AndroidViewGroup.addView, view.get());
-
+            env->CallVoidMethod (peerView, AndroidViewGroup.addView, view.get());
             componentMovedOrResized (false, false);
         }
     }
@@ -135,7 +137,10 @@ private:
 };
 
 //==============================================================================
-AndroidViewComponent::AndroidViewComponent() {}
+AndroidViewComponent::AndroidViewComponent()
+{
+}
+
 AndroidViewComponent::~AndroidViewComponent() {}
 
 void AndroidViewComponent::setView (void* view)
@@ -145,7 +150,14 @@ void AndroidViewComponent::setView (void* view)
         pimpl.reset();
 
         if (view != nullptr)
-            pimpl.reset (new Pimpl ((jobject) view, *this));
+        {
+            // explicitly create a new local ref here so that we don't
+            // delete the users pointer
+            auto* env = getEnv();
+            auto localref = LocalRef<jobject>(env->NewLocalRef((jobject) view));
+
+            pimpl.reset (new Pimpl (localref, *this));
+        }
     }
 }
 

@@ -36,6 +36,8 @@ namespace juce
     GlyphArrangement class will do what you need for text layout.
 
     @see GlyphArrangement, Font
+
+    @tags{Graphics}
 */
 class JUCE_API  PositionedGlyph  final
 {
@@ -49,7 +51,7 @@ public:
     PositionedGlyph (const PositionedGlyph&) = default;
     PositionedGlyph& operator= (const PositionedGlyph&) = default;
 
-    // VS2013 can't default move constructors and assignmants
+    // VS2013 can't default move constructors and assignments
     PositionedGlyph (PositionedGlyph&&) noexcept;
     PositionedGlyph& operator= (PositionedGlyph&&) noexcept;
 
@@ -118,6 +120,8 @@ private:
     Graphics class, but can be used directly if more control is needed.
 
     @see Font, PositionedGlyph
+
+    @tags{Graphics}
 */
 class JUCE_API  GlyphArrangement  final
 {

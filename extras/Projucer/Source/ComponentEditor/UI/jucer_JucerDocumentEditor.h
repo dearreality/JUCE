@@ -39,7 +39,7 @@ class JucerDocumentEditor   : public Component,
 public:
     //==============================================================================
     JucerDocumentEditor (JucerDocument* const document);
-    ~JucerDocumentEditor();
+    ~JucerDocumentEditor() override;
 
     JucerDocument* getDocument() const noexcept         { return document.get(); }
 
@@ -69,7 +69,7 @@ public:
     static JucerDocumentEditor* getActiveDocumentHolder();
 
 private:
-    ScopedPointer<JucerDocument> document;
+    std::unique_ptr<JucerDocument> document;
     ComponentLayoutPanel* compLayoutPanel = nullptr;
 
     struct JucerDocumentTabs  : public TabbedComponent

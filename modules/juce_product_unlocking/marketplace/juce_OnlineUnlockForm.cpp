@@ -145,7 +145,7 @@ struct OnlineUnlockForm::OverlayComp  : public Component,
     OnlineUnlockStatus::UnlockResult result;
     String email, password;
 
-    ScopedPointer<TextButton> cancelButton;
+    std::unique_ptr<TextButton> cancelButton;
 
     JUCE_LEAK_DETECTOR (OnlineUnlockForm::OverlayComp)
 };
@@ -219,9 +219,9 @@ void OnlineUnlockForm::resized()
 
     const int buttonHeight = 22;
 
-    Rectangle<int> r (getLocalBounds().reduced (10, 20));
+    auto r = getLocalBounds().reduced (10, 20);
 
-    Rectangle<int> buttonArea (r.removeFromBottom (buttonHeight));
+    auto buttonArea = r.removeFromBottom (buttonHeight);
     registerButton.changeWidthToFitText (buttonHeight);
     cancelButton.changeWidthToFitText (buttonHeight);
 
