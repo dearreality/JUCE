@@ -145,15 +145,15 @@
 namespace Steinberg
 {
     /** Missing IIDs */
-    DEF_CLASS_IID (IPluginBase)
+    // DEF_CLASS_IID (IPluginBase)
     DEF_CLASS_IID (IPlugView)
     DEF_CLASS_IID (IPlugFrame)
    #if VST_VERSION < 0x030608
     DEF_CLASS_IID (IBStream)
    #endif
-    DEF_CLASS_IID (IPluginFactory)
-    DEF_CLASS_IID (IPluginFactory2)
-    DEF_CLASS_IID (IPluginFactory3)
+    // DEF_CLASS_IID (IPluginFactory)
+    // DEF_CLASS_IID (IPluginFactory2)
+    // DEF_CLASS_IID (IPluginFactory3)
     DEF_CLASS_IID (IPlugViewContentScaleSupport)
 }
 #endif //JUCE_VST3HEADERS_INCLUDE_HEADERS_ONLY
