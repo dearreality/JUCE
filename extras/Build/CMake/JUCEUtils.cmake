@@ -1517,10 +1517,13 @@ function(_juce_get_vst3_category_string target out_var)
             list(INSERT vst3_categories 0 Instrument)
         endif()
 
-        if(Fx IN_LIST vst3_categories)
-            list(REMOVE_ITEM vst3_categories Fx)
-            list(INSERT vst3_categories 0 Fx)
-        endif()
+        ## This has been removed until it can be fixed by JUCE
+        ## it is necessary for allowing Pro/Music to function
+        ## as a panner in NUENDO
+#        if(Fx IN_LIST vst3_categories)
+#            list(REMOVE_ITEM vst3_categories Fx)
+#            list(INSERT vst3_categories 0 Fx)
+#        endif()
     endif()
 
     string(REGEX REPLACE ";" "|" result "${vst3_categories}")
